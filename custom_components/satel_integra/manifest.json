@@ -7,5 +7,7 @@
   "issue_tracker": "https://github.com/wasilukm/alt_ha_satel_integra/issues",
   "loggers": ["satel_integra"],
   "requirements": ["satel_integra2==0.4.2"],
+
+  "requirements": ["satel_integra2@git+github.com:alessioburgassi/satel_integra2_ext.git"]
   "version": "0"
 }
