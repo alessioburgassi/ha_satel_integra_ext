@@ -15,9 +15,24 @@ from . import (
     CONF_ZONE_NAME,
     CONF_ZONE_TYPE,
     CONF_ZONES,
+    CONF_ZONES_ALARM,
+    CONF_ZONES_MEM_ALARM,
+    CONF_ZONES_TAMPER,
+    CONF_ZONES_MEM_TAMPER,
+    CONF_ZONES_BYPASS,
+    CONF_ZONES_MASKED,
+    CONF_ZONES_MEM_MASKED,
     DATA_SATEL,
     SIGNAL_OUTPUTS_UPDATED,
-    SIGNAL_ZONES_UPDATED,
+    SIGNAL_VIOLATED_UPDATED,
+    SIGNAL_ALARM_UPDATED,
+    SIGNAL_MEM_ALARM_UPDATED,
+    SIGNAL_TAMPER_UPDATED,
+    SIGNAL_MEM_TAMPER_UPDATED,
+    SIGNAL_BYPASS_UPDATED,
+    SIGNAL_MASKED_UPDATED,
+    SIGNAL_MEM_MASKED_UPDATED
+    
 )
 
 
@@ -40,9 +55,103 @@ async def async_setup_platform(
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME]
         device = SatelIntegraBinarySensor(
-            controller, zone_num, zone_name, zone_type, CONF_ZONES, SIGNAL_ZONES_UPDATED
+            controller, 
+            zone_num, 
+            zone_name, 
+            zone_type, 
+            CONF_ZONES, 
+            SIGNAL_VIOLATED_UPDATED
         )
         devices.append(device)
+
+    for zone_num, device_config_data in configured_zones.items():
+        zone_type = device_config_data[CONF_ZONE_TYPE]
+        zone_name = device_config_data[CONF_ZONE_NAME] + ' (alarm)'
+        device = SatelIntegraBinarySensor(
+            controller, 
+            zone_num, 
+            zone_name, 
+            zone_type, 
+            CONF_ZONES_ALARM, 
+            SIGNAL_ALARM_UPDATED
+        )
+        devices.append(device)
+    
+    for zone_num, device_config_data in configured_zones.items():
+        zone_type = device_config_data[CONF_ZONE_TYPE]
+        zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem alarm)'
+        device = SatelIntegraBinarySensor(
+            controller, 
+            zone_num, 
+            zone_name, 
+            zone_type, 
+            CONF_ZONES_MEM_ALARM, 
+            SIGNAL_MEM_ALARM_UPDATED
+        )
+        devices.append(device)
+
+    for zone_num, device_config_data in configured_zones.items():
+        zone_type = device_config_data[CONF_ZONE_TYPE]
+        zone_name = device_config_data[CONF_ZONE_NAME] + ' (tamper)'
+        device = SatelIntegraBinarySensor(
+            controller, 
+            zone_num, 
+            zone_name, 
+            zone_type, 
+            CONF_ZONES_TAMPER, 
+            SIGNAL_TAMPER_UPDATED
+        )
+        devices.append(device)
+
+    for zone_num, device_config_data in configured_zones.items():
+        zone_type = device_config_data[CONF_ZONE_TYPE]
+        zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem tamper)'
+        device = SatelIntegraBinarySensor(
+            controller, 
+            zone_num, 
+            zone_name, 
+            zone_type, 
+            CONF_ZONES_MEM_TAMPER, 
+            SIGNAL_MEM_TAMPER_UPDATED
+        )
+        devices.append(device)
+    for zone_num, device_config_data in configured_zones.items():
+        zone_type = device_config_data[CONF_ZONE_TYPE]
+        zone_name = device_config_data[CONF_ZONE_NAME] + ' (bypass)'
+        device = SatelIntegraBinarySensor(
+            controller, 
+            zone_num, 
+            zone_name, 
+            zone_type, 
+            CONF_ZONES_BYPASS, 
+            SIGNAL_BYPASS_UPDATED
+        )
+        devices.append(device)
+    for zone_num, device_config_data in configured_zones.items():
+        zone_type = device_config_data[CONF_ZONE_TYPE]
+        zone_name = device_config_data[CONF_ZONE_NAME] + ' (masked)'
+        device = SatelIntegraBinarySensor(
+            controller, 
+            zone_num, 
+            zone_name, 
+            zone_type, 
+            CONF_ZONES_MASKED, 
+            SIGNAL_MASKED_UPDATED
+        )
+        devices.append(device)
+    for zone_num, device_config_data in configured_zones.items():
+        zone_type = device_config_data[CONF_ZONE_TYPE]
+        zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem masked)'
+        device = SatelIntegraBinarySensor(
+            controller, 
+            zone_num, 
+            zone_name, 
+            zone_type, 
+            CONF_ZONES_MEM_MASKED, 
+            SIGNAL_MEM_MASKED_UPDATED
+        )
+        devices.append(device)
+
 
     configured_outputs = discovery_info[CONF_OUTPUTS]
 
@@ -55,7 +164,7 @@ async def async_setup_platform(
             zone_name,
             zone_type,
             CONF_OUTPUTS,
-            SIGNAL_OUTPUTS_UPDATED,
+            SIGNAL_OUTPUTS_UPDATED
         )
         devices.append(device)
 
@@ -78,7 +187,7 @@ class SatelIntegraBinarySensor(BinarySensorEntity):
     ):
         """Initialize the binary_sensor."""
         self._device_number = device_number
-        self._attr_unique_id = f"satel_{sensor_type}_{device_number}"
+        self._attr_unique_id = f"satel_{sensor_type}_{zone_type}_{device_number}"
         self._name = device_name
         self._zone_type = zone_type
         self._state = 0
@@ -92,10 +201,46 @@ class SatelIntegraBinarySensor(BinarySensorEntity):
                 self._state = 1
             else:
                 self._state = 0
-        elif self._device_number in self._satel.violated_zones:
-            self._state = 1
-        else:
-            self._state = 0
+        elif self._react_to_signal == SIGNAL_VIOLATED_UPDATED:
+            if self._device_number in self._satel.violated_zones:
+                self._state = 1
+            else:
+                self._state = 0
+        elif self._react_to_signal == SIGNAL_ALARM_UPDATED:
+            if self._device_number in self._satel.alarm_zones:
+                self._state = 1
+            else:
+                self._state = 0
+        elif self._react_to_signal == SIGNAL_MEM_ALARM_UPDATED:
+            if self._device_number in self._satel.mem_alarm_zones:
+                self._state = 1
+            else:
+                self._state = 0
+        elif self._react_to_signal == SIGNAL_TAMPER_UPDATED:
+            if self._device_number in self._satel.tamper_zones:
+                self._state = 1
+            else:
+                self._state = 0
+        elif self._react_to_signal == SIGNAL_MEM_TAMPER_UPDATED:
+            if self._device_number in self._satel.mem_tamper_zones:
+                self._state = 1
+            else:
+                self._state = 0
+        elif self._react_to_signal == SIGNAL_BYPASS_UPDATED:
+            if self._device_number in self._satel.bypass_zones:
+                self._state = 1
+            else:
+                self._state = 0
+        elif self._react_to_signal == SIGNAL_MASKED_UPDATED:
+            if self._device_number in self._satel.masked_zones:
+                self._state = 1
+            else:
+                self._state = 0
+        elif self._react_to_signal == SIGNAL_MEM_MASKED_UPDATED:
+            if self._device_number in self._satel.mem_masked_zones:
+                self._state = 1
+            else:
+                self._state = 0
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, self._react_to_signal, self._devices_updated
