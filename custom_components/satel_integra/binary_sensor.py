@@ -1,4 +1,7 @@
 """Support for Satel Integra zone states- represented as binary sensors."""
+""" VERSION EXTENDED BY ALESSIO BURGASSI """
+""" SUPPORT ALL EVENT ZONE (VIOLATED,ALARM,TAMPER,BYPASS,MASKED)"""
+
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import (
