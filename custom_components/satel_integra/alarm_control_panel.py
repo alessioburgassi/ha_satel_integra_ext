@@ -8,7 +8,7 @@ import logging
 from satel_integra2.satel_integra import AlarmState
 
 import homeassistant.components.alarm_control_panel as alarm
-from homeassistant.components.alarm_control_panel import AlarmControlPanelEntityFeature
+from homeassistant.components.alarm_control_panel import AlarmControlPanelEntityFeature, AlarmControlPanelEntity, AlarmControlPanelState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
