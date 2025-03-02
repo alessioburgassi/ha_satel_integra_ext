@@ -14,6 +14,7 @@ The `satel_integra` integration will allow Home Assistant users who own a Satel 
 There is currently support for the following device types within Home Assistant:
 
 - Binary Sensor: Reports on zone or output statuses
+- The integration create one bynary sensor for each status (violated, alarm, tamper etc)
 - Switch: allows for setting states of selected outputs 
 - Alarm Control Panel: represents the zones (in Polish: "strefa"). Reports its status, and can be used to arm/disarm the partition
 
