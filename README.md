@@ -1,11 +1,13 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-# Alternative Satel Integra
+# Alternative Satel Integra Extended Home assistant integration by Alessio Burgassi
 
-The integration is based on build in Home Assistant [Satel Integra integration](https://www.home-assistant.io/integrations/satel_integra/).
+The integration is based on build in Home Assistant [Satel Integra integration] (https://www.home-assistant.io/integrations/satel_integra/) and wasilukm version (https://github.com/wasilukm/alt_ha_satel_integra)
 It provides the following additional features comparing to the mainstream integration:
 
   - encrypted communication (see `integration_key` configuration variable)
+  - support all zone status (Violation,Alarm, Memory Alarm, Tamper, Memory Tamper, Mask, Bypass)
+  - supoort deprecated implementation from 2015.11 HA versioni
 
 The `satel_integra` integration will allow Home Assistant users who own a Satel Integra alarm panel to leverage their alarm system and its sensors to provide Home Assistant with information about their homes. Connectivity between Home Assistant and the alarm is accomplished through a ETHM extension module that must be installed in the alarm. Compatible with ETHM-1 Plus module with firmware version > 2.00 (version 2.04 confirmed).
 
@@ -32,7 +34,7 @@ For the Binary Sensor check the [type/class](https://www.home-assistant.io/integ
 
 ### Installation with HACS
 
- - add the repository to the [HACS custom repositories](https://hacs.xyz/docs/faq/custom_repositories)
+ - add the repository (https://github.com/alessioburgassi/ha_satel_integra_ext) to the [HACS custom repositories](https://hacs.xyz/docs/faq/custom_repositories)
  - in HACS look for Satel Integra and install the integration
  - update `configuration.yaml` (see below)
  - restart Home Assistant
@@ -208,19 +210,3 @@ satel_integra:
     14:
       name: "Garden light"
       
-```
-
-Having configured the zones and the outputs, you can use them for automation, such as to react on the movement in your bedroom.
-For example:
-
-```yaml
-  alias: "Flick the input switch when movement in bedroom detected"
-  trigger:
-      platform: state
-      entity_id: "binary_sensor.bedroom"
-      to: "on"
-  action:
-      service: input_boolean.turn_on
-      target:
-        entity_id: input_boolean.movement_detected
-```
