@@ -1,6 +1,6 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-# Alternative Satel Integra Extended Home assistant integration by Alessio Burgassi
+# Alternative Satel Integra Home assistant integration by Alessio Burgassi
 
 The integration is based on build in Home Assistant [Satel Integra integration] (https://www.home-assistant.io/integrations/satel_integra/) and wasilukm version (https://github.com/wasilukm/alt_ha_satel_integra)
 It provides the following additional features comparing to the mainstream integration:
