@@ -7,7 +7,7 @@ It provides the following additional features comparing to the mainstream integr
 
   - encrypted communication (see `integration_key` configuration variable)
   - support all zone status (Violation, Alarm, Memory Alarm, Tamper, Memory Tamper, Mask, Bypass)
-  - support deprecated implementation from 2015.11 HA version
+  - support deprecated implementation from 2025.11 HA version
 
 
 ![image](https://github.com/user-attachments/assets/bfe3d604-6570-4336-b157-df5f6f6d807b)
