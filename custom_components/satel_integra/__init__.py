@@ -1,6 +1,4 @@
-"""Support for Satel Integra devices."""
-""" VERSION EXTENDED BY ALESSIO BURGASSI """
-""" SUPPORT ALL EVENT ZONE (VIOLATED,ALARM,TAMPER,BYPASS,MASKED)"""
+"""Support for Satel Integra devices. VERSION EXTENDED BY ALESSIO BURGASSI https://github.com/alessioburgassi/ha_satel_integra_ext SUPPORT ALL EVENT ZONE (VIOLATED,ALARM,TAMPER,BYPASS,MASKED)"""
 
 import collections
 import logging
