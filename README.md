@@ -9,7 +9,12 @@ It provides the following additional features comparing to the mainstream integr
   - support all zone status (Violation, Alarm, Memory Alarm, Tamper, Memory Tamper, Mask, Bypass)
   - support deprecated implementation from 2015.11 HA version
 
+![image](https://github.com/user-attachments/assets/bfe3d604-6570-4336-b157-df5f6f6d807b)
+
+
 The `satel_integra` integration will allow Home Assistant users who own a Satel Integra alarm panel to leverage their alarm system and its sensors to provide Home Assistant with information about their homes. Connectivity between Home Assistant and the alarm is accomplished through a ETHM extension module that must be installed in the alarm. Compatible with ETHM-1 Plus module with firmware version > 2.00 (version 2.04 confirmed).
+
+
 
 There is currently support for the following device types within Home Assistant:
 
