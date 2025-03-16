@@ -56,6 +56,7 @@ class SatelIntegraAlarmPanel(alarm.AlarmControlPanelEntity):
 
     _attr_code_format = alarm.CodeFormat.NUMBER
     _attr_should_poll = False
+    _connect_retry = 3
     _attr_state: str | None
     _attr_supported_features = (
         AlarmControlPanelEntityFeature.ARM_HOME
@@ -94,18 +95,10 @@ class SatelIntegraAlarmPanel(alarm.AlarmControlPanelEntity):
         """Read current status of the alarm and translate it into HA status."""
 
         # Default - disarmed:
-        hass_alarm_status = AlarmControlPanelState.
+        hass_alarm_status = AlarmControlPanelState.DISARMED
 
         if not self._satel.connected:
-            if _connect_retry > 0:
-                _connect_retry -= 1
-            if _connect_retry == 0:
-                hass_alarm_status = AlarmControlPanelState.DISARMED
-                return None
-            else:
-                hass_alarm_status = self._attr_state
             return None
-
 
         state_map = OrderedDict(
             [
