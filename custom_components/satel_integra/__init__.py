@@ -1,7 +1,5 @@
-"""Support for Satel Integra devices. VERSION EXTENDED BY ALESSIO BURGASSI https://github.com/alessioburgassi/ha_satel_integra_ext SUPPORT ALL EVENT ZONE (VIOLATED,ALARM,TAMPER,BYPASS,MASKED)"""
-
+"""Support for Satel Integra devices."""
 import collections
-import logging
 
 from satel_integra2.satel_integra import AsyncSatel
 import voluptuous as vol
@@ -13,53 +11,14 @@ from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.typing import ConfigType
 
-DEFAULT_ALARM_NAME = "satel_integra"
-DEFAULT_PORT = 7094
-DEFAULT_CONF_ARM_HOME_MODE = 1
-DEFAULT_DEVICE_PARTITION = 1
-DEFAULT_ZONE_TYPE = "motion"
-
-_LOGGER = logging.getLogger(__name__)
-
-DOMAIN = "satel_integra"
-
-DATA_SATEL = "satel_integra"
-
-CONF_DEVICE_CODE = "code"
-CONF_DEVICE_PARTITIONS = "partitions"
-CONF_ARM_HOME_MODE = "arm_home_mode"
-CONF_ZONE_NAME = "name"
-CONF_ZONE_TYPE = "type"
-CONF_ZONES = "zones"
-CONF_ZONES_ALARM = "zones_alarm"
-CONF_ZONES_MEM_ALARM = "zones_mem_alarm"
-CONF_ZONES_TAMPER = "zones_tamper"
-CONF_ZONES_MEM_TAMPER = "zones_mem_tamper"
-CONF_ZONES_BYPASS = "zones_bypass"
-CONF_ZONES_MASKED = "zones_masked"
-CONF_ZONES_MEM_MASKED = "zones_mem_masked"
-
-CONF_OUTPUTS = "outputs"
-CONF_SWITCHABLE_OUTPUTS = "switchable_outputs"
-CONF_INTEGRATION_KEY = "integration_key"
-
-ZONES = "zones"
-
-SIGNAL_PANEL_MESSAGE = "satel_integra.panel_message"
-SIGNAL_PANEL_ARM_AWAY = "satel_integra.panel_arm_away"
-SIGNAL_PANEL_ARM_HOME = "satel_integra.panel_arm_home"
-SIGNAL_PANEL_DISARM = "satel_integra.panel_disarm"
-
-SIGNAL_VIOLATED_UPDATED = "satel_integra.zones_updated"
-SIGNAL_ALARM_UPDATED = "satel_integra.zones_alarm"
-SIGNAL_MEM_ALARM_UPDATED = "satel_integra.zones_mem_alarm"
-SIGNAL_TAMPER_UPDATED = "satel_integra.zones_tamper"
-SIGNAL_MEM_TAMPER_UPDATED = "satel_integra.zones_mem_tamper"
-SIGNAL_BYPASS_UPDATED = "satel_integra.zones_bypass"
-SIGNAL_MASKED_UPDATED = "satel_integra.zones_masked"
-SIGNAL_MEM_MASKED_UPDATED = "satel_integra.zones_mem_masked"
-
-SIGNAL_OUTPUTS_UPDATED = "satel_integra.outputs_updated"
+from .const import (
+    _LOGGER, DOMAIN, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE,
+    CONF_ZONES, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY,
+    DEFAULT_PORT, DEFAULT_CONF_ARM_HOME_MODE, DEFAULT_ZONE_TYPE,
+    DATA_SATEL, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE, CONF_ZONE_NAME, CONF_ZONE_TYPE,
+    CONF_ZONES, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY, CONF_TEMP_SENSOR_NAME,
+    ZONES, SIGNAL_PANEL_MESSAGE, SIGNAL_ZONES_UPDATED, SIGNAL_OUTPUTS_UPDATED
+)
 
 ZONE_SCHEMA = vol.Schema(
     {
@@ -76,7 +35,11 @@ PARTITION_SCHEMA = vol.Schema(
         ),
     }
 )
-
+TEMP_SENSOR_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_TEMP_SENSOR_NAME): cv.string,
+    }
+)
 
 def is_alarm_code_necessary(value):
     """Check if alarm code must be configured."""
@@ -84,7 +47,6 @@ def is_alarm_code_necessary(value):
         raise vol.Invalid("You need to specify alarm code to use switchable_outputs")
 
     return value
-
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -102,13 +64,13 @@ CONFIG_SCHEMA = vol.Schema(
                     vol.Coerce(int): EDITABLE_OUTPUT_SCHEMA
                 },
                 vol.Optional(CONF_INTEGRATION_KEY, default=''): cv.string,
+                vol.Optional(CONF_TEMP_SENSORS, default={}): {vol.Coerce(int): TEMP_SENSOR_SCHEMA},
             },
             is_alarm_code_necessary,
         )
     },
     extra=vol.ALLOW_EXTRA,
 )
-
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Satel Integra component."""
@@ -127,7 +89,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     )
 
     controller = AsyncSatel(
-        host, port, hass.loop, zones, monitored_outputs, partitions, integration_key)
+        host, port, hass.loop, zones, monitored_outputs, partitions) #, integration_key)
 
     hass.data[DATA_SATEL] = controller
 
@@ -171,56 +133,33 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         )
     )
 
+    hass.async_create_task(
+        async_load_platform(
+            hass,
+            Platform.SENSOR,
+            DOMAIN,
+            {
+                CONF_TEMP_SENSORS: conf.get(CONF_TEMP_SENSORS),
+            },
+            config,
+        )
+    )
     @callback
     def alarm_status_update_callback():
         """Send status update received from alarm to Home Assistant."""
-        _LOGGER.warning("Sending request to update panel state")
+        _LOGGER.debug("Sending request to update panel state")
         async_dispatcher_send(hass, SIGNAL_PANEL_MESSAGE)
+
     @callback
-    def zones_violated_callback(status):
+    def zones_update_callback(status):
         """Update zone objects as per notification from the alarm."""
-        _LOGGER.warning("Zones VIOLATED callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_VIOLATED_UPDATED, status[ZONES])
-    @callback
-    def zones_alarm_callback(status):
-        """Update zone objects as per notification from the alarm."""
-        _LOGGER.warning("Zones ALARM callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_ALARM_UPDATED, status[ZONES])
-    @callback
-    def zones_mem_alarm_callback(status):
-        """Update zone objects as per notification from the alarm."""
-        _LOGGER.warning("Zones MEMORY ALARM callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_MEM_ALARM_UPDATED, status[ZONES])
-    @callback
-    def zones_tamper_callback(status):
-        """Update zone objects as per notification from the alarm."""
-        _LOGGER.warning("Zones TAMPER callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_TAMPER_UPDATED, status[ZONES])
-    @callback
-    def zones_mem_tamper_callback(status):
-        """Update zone objects as per notification from the alarm."""
-        _LOGGER.warning("Zones MEM TAMPER callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_MEM_TAMPER_UPDATED, status[ZONES])
-    @callback
-    def zones_bypass_callback(status):
-        """Update zone objects as per notification from the alarm."""
-        _LOGGER.warning("Zones BYPASS callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_BYPASS_UPDATED, status[ZONES])
-    @callback
-    def zones_masked_callback(status):
-        """Update zone objects as per notification from the alarm."""
-        _LOGGER.warning("Zones MASK callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_MASKED_UPDATED, status[ZONES])
-    @callback
-    def zones_mem_masked_callback(status):
-        """Update zone objects as per notification from the alarm."""
-        _LOGGER.warning("Zones MEM MASKED callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_MEM_MASKED_UPDATED, status[ZONES])
+        _LOGGER.debug("Zones callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_ZONES_UPDATED, status[ZONES])
 
     @callback
     def outputs_update_callback(status):
         """Update zone objects as per notification from the alarm."""
-        _LOGGER.warning("OUTPUT updated callback , status: %s", status)
+        _LOGGER.debug("Outputs updated callback , status: %s", status)
         async_dispatcher_send(hass, SIGNAL_OUTPUTS_UPDATED, status["outputs"])
 
     # Create a task instead of adding a tracking job, since this task will
@@ -228,7 +167,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.loop.create_task(controller.keep_alive())
     hass.loop.create_task(
         controller.monitor_status(
-            alarm_status_update_callback, zones_violated_callback, zones_alarm_callback, zones_mem_alarm_callback, zones_tamper_callback,zones_mem_tamper_callback,zones_bypass_callback,zones_masked_callback,zones_mem_masked_callback,outputs_update_callback
+            alarm_status_update_callback, zones_update_callback, outputs_update_callback
         )
     )
 
