@@ -9,13 +9,13 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-
+from .entity import SatelIntegraEntity
 from . import (
     CONF_DEVICE_CODE,
     CONF_SWITCHABLE_OUTPUTS,
     CONF_ZONE_NAME,
     DATA_SATEL,
-    SIGNAL_OUTPUTS_UPDATED,
+    SIGNAL_OUTPUTS_UPDATED
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,23 +44,22 @@ async def async_setup_platform(
         device = SatelIntegraSwitch(
             controller, zone_num, zone_name, discovery_info[CONF_DEVICE_CODE]
         )
+
         devices.append(device)
 
     async_add_entities(devices)
 
 
-class SatelIntegraSwitch(SwitchEntity):
+class SatelIntegraSwitch(SatelIntegraEntity, SwitchEntity):
     """Representation of an Satel switch."""
 
     _attr_should_poll = False
 
     def __init__(self, controller, device_number, device_name, code):
         """Initialize the binary_sensor."""
-        self._device_number = device_number
-        self._name = device_name
+        super().__init__(controller, device_number, device_name, "output") # should be "switch")
         self._state = False
         self._code = code
-        self._satel = controller
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks."""
@@ -102,8 +101,3 @@ class SatelIntegraSwitch(SwitchEntity):
     def _read_state(self):
         """Read state of the device."""
         return self._device_number in self._satel.violated_outputs
-
-    @property
-    def name(self):
-        """Return the name of the switch."""
-        return self._name
