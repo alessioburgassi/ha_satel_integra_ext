@@ -16,8 +16,8 @@ from .const import (
     CONF_ZONES, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY,
     DEFAULT_PORT, DEFAULT_CONF_ARM_HOME_MODE, DEFAULT_ZONE_TYPE,
     DATA_SATEL, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE, CONF_ZONE_NAME, CONF_ZONE_TYPE,
-    CONF_ZONES, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY, CONF_TEMP_SENSOR_NAME,
-    ZONES, SIGNAL_PANEL_MESSAGE, SIGNAL_ZONES_UPDATED, SIGNAL_OUTPUTS_UPDATED
+    CONF_ZONES,CONF_ZONES_ALARM,CONF_ZONES_MEM_ALARM,CONF_ZONES_TAMPER,CONF_ZONES_MEM_TAMPER,CONF_ZONES_BYPASS,CONF_ZONES_MASKED,CONF_ZONES_MEM_MASKED, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY, CONF_TEMP_SENSOR_NAME,
+    ZONES, SIGNAL_PANEL_MESSAGE, SIGNAL_VIOLATED_UPDATED,SIGNAL_ALARM_UPDATED,SIGNAL_MEM_ALARM_UPDATED, SIGNAL_TAMPER_UPDATED,SIGNAL_MEM_TAMPER_UPDATED,SIGNAL_BYPASS_UPDATED, SIGNAL_MASKED_UPDATED, SIGNAL_MEM_MASKED_UPDATED,SIGNAL_OUTPUTS_UPDATED
 )
 
 ZONE_SCHEMA = vol.Schema(
@@ -147,14 +147,48 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     @callback
     def alarm_status_update_callback():
         """Send status update received from alarm to Home Assistant."""
-        _LOGGER.debug("Sending request to update panel state")
+        _LOGGER.debug("ARM panel state callback")
         async_dispatcher_send(hass, SIGNAL_PANEL_MESSAGE)
-
     @callback
-    def zones_update_callback(status):
+    def zones_violated_callback(status):
         """Update zone objects as per notification from the alarm."""
-        _LOGGER.debug("Zones callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_ZONES_UPDATED, status[ZONES])
+        _LOGGER.warning("Zones VIOLATED callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_VIOLATED_UPDATED, status[ZONES])
+    @callback
+    def zones_alarm_callback(status):
+        """Update zone objects as per notification from the alarm."""
+        _LOGGER.warning("Zones ALARM callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_ALARM_UPDATED, status[ZONES])
+    @callback
+    def zones_mem_alarm_callback(status):
+        """Update zone objects as per notification from the alarm."""
+        _LOGGER.warning("Zones MEMORY ALARM callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_MEM_ALARM_UPDATED, status[ZONES])
+    @callback
+    def zones_tamper_callback(status):
+        """Update zone objects as per notification from the alarm."""
+        _LOGGER.warning("Zones TAMPER callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_TAMPER_UPDATED, status[ZONES])
+    @callback
+    def zones_mem_tamper_callback(status):
+        """Update zone objects as per notification from the alarm."""
+        _LOGGER.warning("Zones MEM TAMPER callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_MEM_TAMPER_UPDATED, status[ZONES])
+    @callback
+    def zones_bypass_callback(status):
+        """Update zone objects as per notification from the alarm."""
+        _LOGGER.warning("Zones BYPASS callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_BYPASS_UPDATED, status[ZONES])
+    @callback
+    def zones_masked_callback(status):
+        """Update zone objects as per notification from the alarm."""
+        _LOGGER.warning("Zones MASK callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_MASKED_UPDATED, status[ZONES])
+    @callback
+    def zones_mem_masked_callback(status):
+        """Update zone objects as per notification from the alarm."""
+        _LOGGER.warning("Zones MEM MASKED callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_MEM_MASKED_UPDATED, status[ZONES])
 
     @callback
     def outputs_update_callback(status):
@@ -165,9 +199,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Create a task instead of adding a tracking job, since this task will
     # run until the connection to satel_integra is closed.
     hass.loop.create_task(controller.keep_alive())
+    hass.loop.create_task(controller.partition_armed_delay())
+
     hass.loop.create_task(
         controller.monitor_status(
-            alarm_status_update_callback, zones_update_callback, outputs_update_callback
+            alarm_status_update_callback, zones_violated_callback, zones_alarm_callback, zones_mem_alarm_callback, zones_tamper_callback,zones_mem_tamper_callback,zones_bypass_callback,zones_masked_callback,zones_mem_masked_callback,outputs_update_callback
         )
     )
 
