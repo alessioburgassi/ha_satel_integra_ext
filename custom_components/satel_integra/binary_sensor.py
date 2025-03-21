@@ -1,4 +1,4 @@
-"""Support for Satel Integra zone states- represented as binary sensors.VERSION EXTENDED BY ALESSIO BURGASSI https://github.com/alessioburgassi/ha_satel_integra_ext SUPPORT ALL EVENT ZONE (VIOLATED,ALARM,TAMPER,BYPASS,MASKED)"""
+"""Support for Satel Integra zone states- represented as binary sensors."""
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import (
@@ -10,7 +10,8 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from . import (
+from .entity import SatelIntegraEntity
+from .const import (
     CONF_OUTPUTS,
     CONF_ZONE_NAME,
     CONF_ZONE_TYPE,
@@ -32,9 +33,7 @@ from . import (
     SIGNAL_BYPASS_UPDATED,
     SIGNAL_MASKED_UPDATED,
     SIGNAL_MEM_MASKED_UPDATED
-    
 )
-
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -76,7 +75,7 @@ async def async_setup_platform(
             SIGNAL_ALARM_UPDATED
         )
         devices.append(device)
-    
+
     for zone_num, device_config_data in configured_zones.items():
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem alarm)'
@@ -152,50 +151,34 @@ async def async_setup_platform(
         )
         devices.append(device)
 
-
     configured_outputs = discovery_info[CONF_OUTPUTS]
 
     for zone_num, device_config_data in configured_outputs.items():
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME]
         device = SatelIntegraBinarySensor(
-            controller,
-            zone_num,
-            zone_name,
-            zone_type,
-            CONF_OUTPUTS,
-            SIGNAL_OUTPUTS_UPDATED
+            controller, zone_num, zone_name, zone_type, "output", SIGNAL_OUTPUTS_UPDATED
         )
         devices.append(device)
 
     async_add_entities(devices)
 
 
-class SatelIntegraBinarySensor(BinarySensorEntity):
+class SatelIntegraBinarySensor(SatelIntegraEntity, BinarySensorEntity):
     """Representation of an Satel Integra binary sensor."""
 
     _attr_should_poll = False
 
     def __init__(
-        self,
-        controller,
-        device_number,
-        device_name,
-        zone_type,
-        sensor_type,
-        react_to_signal,
+        self, controller, device_number, device_name, zone_type, device_type, react_to_signal
     ):
         """Initialize the binary_sensor."""
-        self._device_number = device_number
-        self._attr_unique_id = f"satel_{sensor_type}_{zone_type}_{device_number}"
-        self._name = device_name
+        super().__init__(controller, device_number, device_name, device_type)
         self._zone_type = zone_type
         self._state = 0
         self._react_to_signal = react_to_signal
-        self._satel = controller
 
     async def async_added_to_hass(self) -> None:
-        """Register callbacks."""
         if self._react_to_signal == SIGNAL_OUTPUTS_UPDATED:
             if self._device_number in self._satel.violated_outputs:
                 self._state = 1
@@ -248,16 +231,10 @@ class SatelIntegraBinarySensor(BinarySensorEntity):
         )
 
     @property
-    def name(self):
-        """Return the name of the entity."""
-        return self._name
-
-    @property
-    def icon(self) -> str | None:
+    def icon(self):
         """Icon for device by its type."""
         if self._zone_type is BinarySensorDeviceClass.SMOKE:
             return "mdi:fire"
-        return None
 
     @property
     def is_on(self):
