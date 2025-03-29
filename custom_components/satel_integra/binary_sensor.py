@@ -1,6 +1,7 @@
 """Support for Satel Integra zone states- represented as binary sensors."""
 from __future__ import annotations
 
+import logging
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -9,6 +10,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+
+_LOGGER = logging.getLogger(__name__)
 
 from .entity import SatelIntegraEntity
 from .const import (
@@ -23,6 +26,12 @@ from .const import (
     CONF_ZONES_BYPASS,
     CONF_ZONES_MASKED,
     CONF_ZONES_MEM_MASKED,
+    CONF_TROUBLE,
+    CONF_TROUBLE2,
+    
+    CONF_KEYPAD,
+    CONF_EXPANDER_BATTERY,
+    CONF_EXPANDER,
     DATA_SATEL,
     SIGNAL_OUTPUTS_UPDATED,
     SIGNAL_VIOLATED_UPDATED,
@@ -32,7 +41,9 @@ from .const import (
     SIGNAL_MEM_TAMPER_UPDATED,
     SIGNAL_BYPASS_UPDATED,
     SIGNAL_MASKED_UPDATED,
-    SIGNAL_MEM_MASKED_UPDATED
+    SIGNAL_MEM_MASKED_UPDATED,
+    SIGNAL_TROUBLE_UPDATED,
+    SIGNAL_TROUBLE2_UPDATED,
 )
 
 async def async_setup_platform(
@@ -114,18 +125,7 @@ async def async_setup_platform(
             SIGNAL_MEM_TAMPER_UPDATED
         )
         devices.append(device)
-    for zone_num, device_config_data in configured_zones.items():
-        zone_type = device_config_data[CONF_ZONE_TYPE]
-        zone_name = device_config_data[CONF_ZONE_NAME] + ' (bypass)'
-        device = SatelIntegraBinarySensor(
-            controller, 
-            zone_num, 
-            zone_name, 
-            zone_type, 
-            CONF_ZONES_BYPASS, 
-            SIGNAL_BYPASS_UPDATED
-        )
-        devices.append(device)
+
     for zone_num, device_config_data in configured_zones.items():
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME] + ' (masked)'
@@ -153,13 +153,62 @@ async def async_setup_platform(
 
     configured_outputs = discovery_info[CONF_OUTPUTS]
 
-    for zone_num, device_config_data in configured_outputs.items():
-        zone_type = device_config_data[CONF_ZONE_TYPE]
-        zone_name = device_config_data[CONF_ZONE_NAME]
+    for output_num, device_config_data in configured_outputs.items():
+        output_type = device_config_data[CONF_ZONE_TYPE]
+        output_name = device_config_data[CONF_ZONE_NAME]
         device = SatelIntegraBinarySensor(
-            controller, zone_num, zone_name, zone_type, "output", SIGNAL_OUTPUTS_UPDATED
+            controller, output_num, output_name, output_type, "output", SIGNAL_OUTPUTS_UPDATED
         )
         devices.append(device)
+    
+    configured_expanders = discovery_info[CONF_EXPANDER]
+
+    _LOGGER.debug("Expander %s", configured_expanders)
+            
+    for zone_num, device_config_data in configured_expanders.items():
+        zone_name = device_config_data[CONF_ZONE_NAME]
+        battery = device_config_data[CONF_EXPANDER_BATTERY]
+        
+        device = SatelIntegraBinarySensor(controller, zone_num+1, zone_name + " (no comm)", "problem", CONF_TROUBLE2, SIGNAL_TROUBLE2_UPDATED)
+        devices.append(device)
+        device = SatelIntegraBinarySensor(controller, zone_num + 1 + 64, zone_name + " (changed)", "problem", CONF_TROUBLE2, SIGNAL_TROUBLE2_UPDATED)
+        devices.append(device)
+        device = SatelIntegraBinarySensor(controller, zone_num +1 + 64 + 64 + 8 + 8 + 8, zone_name + " (tamper)", "problem", CONF_TROUBLE2, SIGNAL_TROUBLE2_UPDATED)
+        devices.append(device)
+
+        if(zone_num < 64 and battery == "yes"):
+            device = SatelIntegraBinarySensor(controller, zone_num + 128 +1, zone_name + " (AC KO)" , "problem", CONF_TROUBLE, SIGNAL_TROUBLE_UPDATED)
+            devices.append(device)
+            device = SatelIntegraBinarySensor(controller, zone_num + 128 + 64 +1 , zone_name + " (battery KO)", "problem", CONF_TROUBLE, SIGNAL_TROUBLE_UPDATED)
+            devices.append(device)
+            device = SatelIntegraBinarySensor(controller, zone_num+ 128 + 64 + 64 +1, zone_name + " (battery NOT connected)", "problem", CONF_TROUBLE, SIGNAL_TROUBLE_UPDATED)
+            devices.append(device)
+        
+
+    configured_trouble = discovery_info[CONF_TROUBLE]
+    _LOGGER.debug("Trouble %s", configured_trouble)
+
+    for zone_num, device_config_data in configured_trouble.items():
+        zone_name = device_config_data[CONF_ZONE_NAME]
+        
+        device = SatelIntegraBinarySensor(controller, zone_num + 320, zone_name, "problem", CONF_TROUBLE, SIGNAL_TROUBLE_UPDATED)
+        devices.append(device)
+    
+    configured_keypad = discovery_info[CONF_KEYPAD]
+    _LOGGER.debug("Keypad %s", configured_keypad)
+
+    for zone_num, device_config_data in configured_keypad.items():
+        zone_name = device_config_data[CONF_ZONE_NAME]
+        
+        device = SatelIntegraBinarySensor(controller, zone_num +1+ 64 + 64, zone_name + " (no comm)", "problem", CONF_TROUBLE2, SIGNAL_TROUBLE2_UPDATED)
+        devices.append(device)
+        device = SatelIntegraBinarySensor(controller, zone_num + 1+64 + 64 + 8, zone_name + " (changed)", "problem", CONF_TROUBLE2, SIGNAL_TROUBLE2_UPDATED)
+        devices.append(device)
+        device = SatelIntegraBinarySensor(controller, zone_num + 1+64 + 64 + 8 + 8 + 64, zone_name +" (tamper)", "problem", CONF_TROUBLE2, SIGNAL_TROUBLE2_UPDATED)
+        devices.append(device)
+        device = SatelIntegraBinarySensor(controller, zone_num + 1+64 + 64 + 8 + 8 + 64 + 8, zone_name + " (init ko)", "problem", CONF_TROUBLE2, SIGNAL_TROUBLE2_UPDATED)
+        devices.append(device)
+
 
     async_add_entities(devices)
 
@@ -175,55 +224,87 @@ class SatelIntegraBinarySensor(SatelIntegraEntity, BinarySensorEntity):
         """Initialize the binary_sensor."""
         super().__init__(controller, device_number, device_name, device_type)
         self._zone_type = zone_type
+        self._device_name = device_name
         self._state = 0
+        self._attr_unique_id = f"satel_{device_type}_{zone_type}_{device_number}"
         self._react_to_signal = react_to_signal
 
     async def async_added_to_hass(self) -> None:
+        # _LOGGER.debug("_react_to_signals:",self._react_to_signal )
+            
         if self._react_to_signal == SIGNAL_OUTPUTS_UPDATED:
+        #    _LOGGER.debug(" _react_to_signal %s, device_number:%s ,status %s, array:%s", self._react_to_signal,self._device_number, self._state,self._satel.violated_outputs )
             if self._device_number in self._satel.violated_outputs:
                 self._state = 1
             else:
                 self._state = 0
         elif self._react_to_signal == SIGNAL_VIOLATED_UPDATED:
+        #    _LOGGER.debug(" _react_to_signal %s, device_number:%s ,status %s, array:%s", self._react_to_signal,self._device_number, self._state,self._satel.violated_outputs )
             if self._device_number in self._satel.violated_zones:
                 self._state = 1
             else:
                 self._state = 0
         elif self._react_to_signal == SIGNAL_ALARM_UPDATED:
+        #    _LOGGER.debug(" _react_to_signal %s, device_number:%s ,status %s, array:%s", self._react_to_signal,self._device_number, self._state,self._satel.alarm_zones )
+            
             if self._device_number in self._satel.alarm_zones:
                 self._state = 1
             else:
                 self._state = 0
         elif self._react_to_signal == SIGNAL_MEM_ALARM_UPDATED:
+        #    _LOGGER.debug(" _react_to_signal %s, device_number:%s ,status %s, array:%s", self._react_to_signal,self._device_number, self._state,self._satel.mem_alarm_zones )
+            
             if self._device_number in self._satel.mem_alarm_zones:
                 self._state = 1
             else:
                 self._state = 0
         elif self._react_to_signal == SIGNAL_TAMPER_UPDATED:
+        #    _LOGGER.debug(" _react_to_signal %s, device_number:%s ,status %s, array:%s", self._react_to_signal,self._device_number, self._state,self._satel.tamper_zones )
+            
             if self._device_number in self._satel.tamper_zones:
                 self._state = 1
             else:
                 self._state = 0
         elif self._react_to_signal == SIGNAL_MEM_TAMPER_UPDATED:
+        #    _LOGGER.debug(" _react_to_signal %s, device_number:%s ,status %s, array:%s", self._react_to_signal,self._device_number, self._state,self._satel.mem_tamper_zones )
+            
             if self._device_number in self._satel.mem_tamper_zones:
                 self._state = 1
             else:
                 self._state = 0
         elif self._react_to_signal == SIGNAL_BYPASS_UPDATED:
+        #    _LOGGER.debug(" _react_to_signal %s, device_number:%s ,status %s, array:%s", self._react_to_signal,self._device_number, self._state,self._satel.bypass_zones )
+            
             if self._device_number in self._satel.bypass_zones:
                 self._state = 1
             else:
                 self._state = 0
         elif self._react_to_signal == SIGNAL_MASKED_UPDATED:
+        #    _LOGGER.debug(" _react_to_signal %s, device_number:%s ,status %s, array:%s", self._react_to_signal,self._device_number, self._state,self._satel.masked_zones )
+            
             if self._device_number in self._satel.masked_zones:
                 self._state = 1
             else:
                 self._state = 0
         elif self._react_to_signal == SIGNAL_MEM_MASKED_UPDATED:
+        #    _LOGGER.debug(" _react_to_signal %s, device_number:%s ,status %s, array:%s", self._react_to_signal,self._device_number, self._state,self._satel.mem_masked_zones )
+            
             if self._device_number in self._satel.mem_masked_zones:
                 self._state = 1
             else:
                 self._state = 0
+        elif self._react_to_signal == SIGNAL_TROUBLE_UPDATED:
+            if self._device_number in self._satel.trouble:
+                self._state = 1
+            else:
+                self._state = 0
+            _LOGGER.debug(" _react_to_signal %s, device_number:%s, _state:%s , device_name:%s, array:%s", self._react_to_signal,self._device_number,self._state, self._device_name,self._satel.trouble )
+        elif self._react_to_signal == SIGNAL_TROUBLE2_UPDATED:
+            if self._device_number in self._satel.trouble2:
+                self._state = 1
+            else:
+                self._state = 0
+            _LOGGER.debug(" _react_to_signal %s, device_number:%s, _state:%s , device_name:%s, array:%s", self._react_to_signal,self._device_number,self._state, self._device_name,self._satel.trouble2 )
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, self._react_to_signal, self._devices_updated
