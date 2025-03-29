@@ -12,18 +12,36 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
-    _LOGGER, DOMAIN, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE,
+    _LOGGER, DOMAIN, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE,CONF_KEYPAD,CONF_TROUBLE,CONF_TROUBLE2,
     CONF_ZONES, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY,
-    DEFAULT_PORT, DEFAULT_CONF_ARM_HOME_MODE, DEFAULT_ZONE_TYPE,
-    DATA_SATEL, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE, CONF_ZONE_NAME, CONF_ZONE_TYPE,
-    CONF_ZONES,CONF_ZONES_ALARM,CONF_ZONES_MEM_ALARM,CONF_ZONES_TAMPER,CONF_ZONES_MEM_TAMPER,CONF_ZONES_BYPASS,CONF_ZONES_MASKED,CONF_ZONES_MEM_MASKED, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY, CONF_TEMP_SENSOR_NAME,
-    ZONES, SIGNAL_PANEL_MESSAGE, SIGNAL_VIOLATED_UPDATED,SIGNAL_ALARM_UPDATED,SIGNAL_MEM_ALARM_UPDATED, SIGNAL_TAMPER_UPDATED,SIGNAL_MEM_TAMPER_UPDATED,SIGNAL_BYPASS_UPDATED, SIGNAL_MASKED_UPDATED, SIGNAL_MEM_MASKED_UPDATED,SIGNAL_OUTPUTS_UPDATED
+    DEFAULT_PORT, DEFAULT_CONF_ARM_HOME_MODE, DEFAULT_ZONE_TYPE,CONF_EXPANDER_BATTERY,DEFAULT_EXPANDER_BATTERY,
+    DATA_SATEL, CONF_EXPANDER, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE, CONF_ZONE_NAME, CONF_ZONE_TYPE,
+    CONF_ZONES,CONF_ZONES_ALARM,CONF_ZONES_MEM_ALARM,CONF_ZONES_TAMPER,CONF_ZONES_MEM_TAMPER,CONF_ZONES_BYPASS,CONF_ZONES_MASKED,CONF_ZONES_MEM_MASKED, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS,CONF_SWITCHABLE_BYPASS, CONF_INTEGRATION_KEY, CONF_TEMP_SENSOR_NAME,
+    ZONES, SIGNAL_PANEL_MESSAGE, SIGNAL_VIOLATED_UPDATED, SIGNAL_ALARM_UPDATED, SIGNAL_MEM_ALARM_UPDATED, SIGNAL_TAMPER_UPDATED, SIGNAL_MEM_TAMPER_UPDATED, SIGNAL_BYPASS_UPDATED, SIGNAL_MASKED_UPDATED, SIGNAL_MEM_MASKED_UPDATED,SIGNAL_OUTPUTS_UPDATED,SIGNAL_OUTPUTS_BYPASS_UPDATED,SIGNAL_TROUBLE_UPDATED,SIGNAL_TROUBLE2_UPDATED,
 )
 
 ZONE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_ZONE_NAME): cv.string,
         vol.Optional(CONF_ZONE_TYPE, default=DEFAULT_ZONE_TYPE): cv.string,
+    }
+)
+EXPANDER_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ZONE_NAME): cv.string,
+        vol.Optional(CONF_EXPANDER_BATTERY, default=DEFAULT_EXPANDER_BATTERY): vol.In(
+            ["no", "yes"]
+        ),
+    }
+)
+KEYPAD_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ZONE_NAME): cv.string,
+    }
+)
+TROUBLE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ZONE_NAME): cv.string,
     }
 )
 EDITABLE_OUTPUT_SCHEMA = vol.Schema({vol.Required(CONF_ZONE_NAME): cv.string})
@@ -60,6 +78,10 @@ CONFIG_SCHEMA = vol.Schema(
                 },
                 vol.Optional(CONF_ZONES, default={}): {vol.Coerce(int): ZONE_SCHEMA},
                 vol.Optional(CONF_OUTPUTS, default={}): {vol.Coerce(int): ZONE_SCHEMA},
+                vol.Optional(CONF_EXPANDER, default={}): {vol.Coerce(int): EXPANDER_SCHEMA},
+                vol.Optional(CONF_KEYPAD, default={}): {vol.Coerce(int): KEYPAD_SCHEMA},
+                vol.Optional(CONF_TROUBLE, default={}): {vol.Coerce(int): TROUBLE_SCHEMA},
+                
                 vol.Optional(CONF_SWITCHABLE_OUTPUTS, default={}): {
                     vol.Coerce(int): EDITABLE_OUTPUT_SCHEMA
                 },
@@ -79,6 +101,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     zones = conf.get(CONF_ZONES)
     outputs = conf.get(CONF_OUTPUTS)
     switchable_outputs = conf.get(CONF_SWITCHABLE_OUTPUTS)
+    expanders = conf.get(CONF_EXPANDER)
+    keypad = conf.get(CONF_KEYPAD)
+    trouble = conf.get(CONF_TROUBLE)
+    
     host = conf.get(CONF_HOST)
     port = conf.get(CONF_PORT)
     partitions = conf.get(CONF_DEVICE_PARTITIONS)
@@ -87,9 +113,33 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     monitored_outputs = collections.OrderedDict(
         list(outputs.items()) + list(switchable_outputs.items())
     )
+    
+    configured_trouble = list()
+    configured_trouble2 = list()
+    
+    for zone_num, device_config_data in expanders.items():
+        battery = device_config_data[CONF_EXPANDER_BATTERY]
+        configured_trouble2.append(zone_num)
+        configured_trouble2.append(zone_num + 64)
+        configured_trouble2.append(zone_num + 64 + 64 + 8 + 8 + 8)
+        if(zone_num < 64 and battery == "yes"):
+            configured_trouble.append(zone_num+ 128 + 1)
+            configured_trouble.append(zone_num+ 128 + 64 +1)
+            configured_trouble.append(zone_num+ 128 + 64 + 64 +1)
+
+
+    for zone_num, device_config_data in trouble.items():
+        configured_trouble.append(zone_num+320)
+
+    for zone_num, device_config_data in keypad.items():
+        configured_trouble2.append(zone_num+ 64 + 64)
+        configured_trouble2.append(zone_num+ 64 + 64 + 8)
+        configured_trouble2.append(zone_num+ 64 + 64 + 8 + 8 + 64)
+        configured_trouble2.append(zone_num+ 64 + 64 + 8 + 8 + 64 + 8)
+
 
     controller = AsyncSatel(
-        host, port, hass.loop, zones, monitored_outputs, partitions) #, integration_key)
+        host, port, hass.loop, zones, monitored_outputs, partitions, configured_trouble,configured_trouble2) #, integration_key)
 
     hass.data[DATA_SATEL] = controller
 
@@ -115,7 +165,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             hass,
             Platform.BINARY_SENSOR,
             DOMAIN,
-            {CONF_ZONES: zones, CONF_OUTPUTS: outputs},
+            {CONF_ZONES: zones, CONF_OUTPUTS: outputs,CONF_EXPANDER: expanders, CONF_KEYPAD: keypad, CONF_TROUBLE:trouble},
             config,
         )
     )
@@ -127,6 +177,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             DOMAIN,
             {
                 CONF_SWITCHABLE_OUTPUTS: switchable_outputs,
+                CONF_ZONES: zones,
                 CONF_DEVICE_CODE: conf.get(CONF_DEVICE_CODE),
             },
             config,
@@ -193,9 +244,18 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     @callback
     def outputs_update_callback(status):
         """Update zone objects as per notification from the alarm."""
-        _LOGGER.debug("Outputs updated callback , status: %s", status)
+        _LOGGER.warning("OUTPUT updated callback, status: %s", status)
         async_dispatcher_send(hass, SIGNAL_OUTPUTS_UPDATED, status["outputs"])
-
+    @callback
+    def trouble_callback(status):
+        """Update zone objects as per notification from the alarm."""
+        _LOGGER.warning("TROUBLE callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_TROUBLE_UPDATED, status["trouble"])
+    @callback
+    def trouble2_callback(status):
+        """Update zone objects as per notification from the alarm."""
+        _LOGGER.warning("TROUBLE2 callback, status: %s", status)
+        async_dispatcher_send(hass, SIGNAL_TROUBLE2_UPDATED, status["trouble2"])
     # Create a task instead of adding a tracking job, since this task will
     # run until the connection to satel_integra is closed.
     hass.loop.create_task(controller.keep_alive())
@@ -203,7 +263,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     hass.loop.create_task(
         controller.monitor_status(
-            alarm_status_update_callback, zones_violated_callback, zones_alarm_callback, zones_mem_alarm_callback, zones_tamper_callback,zones_mem_tamper_callback,zones_bypass_callback,zones_masked_callback,zones_mem_masked_callback,outputs_update_callback
+            alarm_status_update_callback, zones_violated_callback, zones_alarm_callback, zones_mem_alarm_callback, zones_tamper_callback,zones_mem_tamper_callback,zones_bypass_callback,zones_masked_callback,zones_mem_masked_callback,outputs_update_callback,trouble_callback,trouble2_callback
         )
     )
 
