@@ -6,7 +6,13 @@ The integration is based on build in Home Assistant [Satel Integra integration] 
 It provides the following additional features comparing to the mainstream integration:
 
   - encrypted communication (see `integration_key` configuration variable)
+  - support multiple and concurrent command
   - support all zone status (Violation, Alarm, Memory Alarm, Tamper, Memory Tamper, Mask, Bypass)
+  - added switch for bypass any single zone
+  - support for panel trouble (AC fail, battery, bus fail, output fail
+  - support for expansion trouble (AC fail, battery, tamper, no comm)
+  - support for keypad trouble (AC fail, battery, tamper, no comm)
+  - added routine to corrent SATEL protocol bug on PANEL ARM/DISARM status message ( whenge change partition status Satel send a "status" DISARM for small time and after send correct status, example WAIT->DISARM->ARM now in HA is correct WAIT->ARM  (filtered DISARM)
   - support deprecated implementation from 2025.11 HA version
 
 
@@ -176,45 +182,81 @@ Switchable outputs. These will show up as switches within Home Assistant.
 ```yaml
 # Example configuration.yaml entry
 satel_integra:
-  host: 192.168.1.100
+  host: 192.168.1.200
   port: 7094
+  code: 1234
   partitions:
     01:
-      name: "House"
+      name: "Home"
       arm_home_mode: 2
     02:
-      name: "Garage"
+      name: "Garden"
   zones:
     01:
-      name: "Bedroom"
+      name: "Riv taverna"
       type: "motion"
     02:
-      name: "Hall"
-      type: "motion"
-    30:
-      name: "Kitchen - smoke"
-      type: "smoke"
-    113:
-      name: "Entry door"
+      name: "Porta rampa"
       type: "opening"
-  outputs:
-    05:
-      name: "Garden lights trigger"
-      type: "light"
-    09:
-      name: "Gate opening trigger"
-      type: "opening"
-    30:
-      name: "Alarm triggered"
-      type: "safety"
-    32:
-      name: "Alarm power problem"
-      type: "safety"
-  switchable_outputs:
-    05:
-      name: "Gate open"
     06:
-      name: "Gate close"    
+      name: "Fumo locale tecnico"
+      type: "smoke"
+    22:
+      name: "Porta ingresso"
+      type: "opening"
+
+  outputs:
+    35:
+      name: "Sirena"
+      type: "safety"
+
+  switchable_outputs:
+    235:
+      name: "Kitchen"
+    237:
+      name: "Forno"
+  expander:
+    0:
+      name: "Exp bus 1 number 0"
+      battery: "yes"
+    1:
+      name: "Exp bus 1 number 1"   
+    32:
+      name: "Exp bus 2 number 0"    
+    33:
+      name: "Exp bus 2 number 1"     
+  trouble:
+    1:
+      name: "Alarm OUT 1 fault"
+    2:
+      name: "Alarm OUT 2 fault"
+    3:
+      name: "Alarm OUT 3 fault"
+    4:
+      name: "Alarm OUT 4 fault"
+    5:
+      name: "Alarm +KPD fault"
+    6:
+      name: "Alarm +EX1 +EX2 fault"
+    7:
+      name: "Alarm Battery fault"
+    8:
+      name: "Alarm AC fault"
+    9:
+      name: "Alarm Bus DT1 fault"
+    10:
+      name: "Alarm Bus DT2 fault"
+    11:
+      name: "Alarm Bus DTM fault"
+    12:
+      name: "Alarm time fault"
+    13:
+      name: "Alarm No DTR Signal"
     14:
-      name: "Garden light"
+      name: "Alarm battery not present"
+  keypad:
+    0:
+      name: "keypad 0"
+    1:
+      name: "Keypad 1"
       
