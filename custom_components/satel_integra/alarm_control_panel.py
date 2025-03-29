@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections import OrderedDict
 
 from satel_integra2.satel_integra import AlarmState
@@ -16,6 +17,8 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
+_LOGGER = logging.getLogger(__name__)
+
 from .entity import SatelIntegraEntity
 from .const import (
     CONF_ARM_HOME_MODE,
@@ -23,7 +26,6 @@ from .const import (
     CONF_ZONE_NAME,
     DATA_SATEL,
     SIGNAL_PANEL_MESSAGE,
-    _LOGGER
 )
 
 STATE_MAP = OrderedDict(
