@@ -12,7 +12,7 @@ It provides the following additional features comparing to the mainstream integr
   - support for panel trouble (AC fail, battery, bus fail, output fail
   - support for expansion trouble (AC fail, battery, tamper, no comm)
   - support for keypad trouble (AC fail, battery, tamper, no comm)
-  - added routine to corrent SATEL protocol bug on PANEL ARM/DISARM status message ( whenge change partition status Satel send a "status" DISARM for small time and after send correct status, example WAIT->DISARM->ARM now in HA is correct WAIT->ARM  (filtered DISARM)
+  - added routine to corrent SATEL protocol bug on PANEL ARM/DISARM status message ( when  partition status change Satel send a "status" DISARM for small time and after send correct new status, example WAIT->DISARM->ARM now in HA is reported only corretct WAIT->ARM  (filtered DISARM)
   - support deprecated implementation from 2025.11 HA version
 
 
