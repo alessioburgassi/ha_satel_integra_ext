@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-
 from homeassistant.helpers.entity import Entity
 
 from .const import (
@@ -23,6 +22,7 @@ class SatelIntegraEntity(Entity):
         self._satel = controller
         self._device_type = device_type
         self._attr_unique_id = f"${DOMAIN}.{device_type}${device_number}"
+        
         _LOGGER.info("SatelIntegraEntity.__init__ ### %s - %s", self._attr_unique_id, self._name)
 
     @property
