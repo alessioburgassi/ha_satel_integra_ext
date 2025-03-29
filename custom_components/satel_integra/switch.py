@@ -13,9 +13,12 @@ from .entity import SatelIntegraEntity
 from . import (
     CONF_DEVICE_CODE,
     CONF_SWITCHABLE_OUTPUTS,
+    CONF_SWITCHABLE_BYPASS,
     CONF_ZONE_NAME,
+    CONF_ZONES,
     DATA_SATEL,
-    SIGNAL_OUTPUTS_UPDATED
+    SIGNAL_OUTPUTS_UPDATED,
+    SIGNAL_BYPASS_UPDATED
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,19 +36,30 @@ async def async_setup_platform(
     if not discovery_info:
         return
 
-    configured_zones = discovery_info[CONF_SWITCHABLE_OUTPUTS]
+    configured_output = discovery_info[CONF_SWITCHABLE_OUTPUTS]
+    configured_zones = discovery_info[CONF_ZONES]
     controller = hass.data[DATA_SATEL]
 
     devices = []
 
-    for zone_num, device_config_data in configured_zones.items():
+    for zone_num, device_config_data in configured_output.items():
         zone_name = device_config_data[CONF_ZONE_NAME]
 
         device = SatelIntegraSwitch(
-            controller, zone_num, zone_name, discovery_info[CONF_DEVICE_CODE]
+            controller, zone_num, zone_name, discovery_info[CONF_DEVICE_CODE],CONF_SWITCHABLE_OUTPUTS,SIGNAL_OUTPUTS_UPDATED
         )
 
         devices.append(device)
+#BYPASS ADD
+    for output_num, device_config_data in configured_zones.items():
+        output_name = device_config_data[CONF_ZONE_NAME] + ' (bypass)' 
+
+        device = SatelIntegraSwitch(
+            controller, output_num, output_name, discovery_info[CONF_DEVICE_CODE], CONF_SWITCHABLE_BYPASS, SIGNAL_BYPASS_UPDATED
+        )
+        devices.append(device)
+
+
 
     async_add_entities(devices)
 
@@ -55,17 +69,27 @@ class SatelIntegraSwitch(SatelIntegraEntity, SwitchEntity):
 
     _attr_should_poll = False
 
-    def __init__(self, controller, device_number, device_name, code):
+    def __init__(self, controller, device_number, device_name, code, device_type, react_to_signal):
         """Initialize the binary_sensor."""
-        super().__init__(controller, device_number, device_name, "output") # should be "switch")
+        super().__init__(controller, device_number, device_name, device_type) # should be "switch")
         self._state = False
         self._code = code
+        
+        self._device_type = device_type
+        self._react_to_signal = react_to_signal
+
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks."""
-        async_dispatcher_connect(
-            self.hass, SIGNAL_OUTPUTS_UPDATED, self._devices_updated
-        )
+        if self._react_to_signal == SIGNAL_OUTPUTS_UPDATED:
+            async_dispatcher_connect(
+                self.hass, SIGNAL_OUTPUTS_UPDATED, self._devices_updated
+            )
+        
+        if self._react_to_signal == SIGNAL_BYPASS_UPDATED:
+            async_dispatcher_connect(
+                self.hass, SIGNAL_BYPASS_UPDATED, self._devices_updated_bypass
+            )
 
     @callback
     def _devices_updated(self, zones):
@@ -77,20 +101,35 @@ class SatelIntegraSwitch(SatelIntegraEntity, SwitchEntity):
             if new_state != self._state:
                 self._state = new_state
                 self.async_write_ha_state()
-
+    @callback
+    def _devices_updated_bypass(self, zones):
+        """Update switch state, if needed."""
+        _LOGGER.debug("Update bypass switch name: %s number:%s configured zoned: %s", self._name,self._device_number, zones)
+        if self._device_number in zones:
+            new_state = self._read_state()
+            _LOGGER.debug("New state: %s", new_state)
+            if new_state != self._state:
+                self._state = new_state
+                self.async_write_ha_state()
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the device on."""
-        _LOGGER.debug("Switch: %s status: %s, turning on", self._name, self._state)
-        await self._satel.set_output(self._code, self._device_number, True)
-        self.async_write_ha_state()
+        _LOGGER.debug("Switch %s: name: %s  number %s: type:%s status: %s, turning ON",self._react_to_signal, self._name,self._device_number, self._device_type, self._state)
+        if self._react_to_signal == SIGNAL_OUTPUTS_UPDATED:
+            await self._satel.set_output(self._code, self._device_number, True)
+            self.async_write_ha_state()
+        if self._react_to_signal == SIGNAL_BYPASS_UPDATED:
+            await self._satel.set_bypass(self._code, self._device_number, True)
+            self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the device off."""
-        _LOGGER.debug(
-            "Switch name: %s status: %s, turning off", self._name, self._state
-        )
-        await self._satel.set_output(self._code, self._device_number, False)
-        self.async_write_ha_state()
+        _LOGGER.debug("Switch %s: name: %s  number %s: type:%s status: %s, turning OFF",self._react_to_signal, self._name,self._device_number, self._device_type, self._state)
+        if self._react_to_signal == SIGNAL_OUTPUTS_UPDATED:
+            await self._satel.set_output(self._code, self._device_number, False)
+            self.async_write_ha_state()
+        if self._react_to_signal == SIGNAL_BYPASS_UPDATED:
+            await self._satel.set_bypass(self._code, self._device_number, False)
+            self.async_write_ha_state()
 
     @property
     def is_on(self):
@@ -100,4 +139,7 @@ class SatelIntegraSwitch(SatelIntegraEntity, SwitchEntity):
 
     def _read_state(self):
         """Read state of the device."""
-        return self._device_number in self._satel.violated_outputs
+        if self._react_to_signal == SIGNAL_OUTPUTS_UPDATED:
+            return self._device_number in self._satel.violated_outputs
+        if self._react_to_signal == SIGNAL_BYPASS_UPDATED:
+            return self._device_number in self._satel.bypass_zones
