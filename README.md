@@ -195,6 +195,7 @@ satel_integra:
     01:
       name: "Riv taverna"
       type: "motion"
+      mask: "yes"
     02:
       name: "Porta rampa"
       type: "opening"
