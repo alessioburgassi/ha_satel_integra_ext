@@ -291,13 +291,13 @@ class SatelIntegraBinarySensor(SatelIntegraEntity, BinarySensorEntity):
                 self._state = 1
             else:
                 self._state = 0
-            _LOGGER.debug(" _react_to_signal %s, device_number:%s, _state:%s , device_name:%s, array:%s", self._react_to_signal,self._device_number,self._state, self._device_name,self._satel.trouble )
+            #_LOGGER.debug(" _react_to_signal %s, device_number:%s, _state:%s , device_name:%s, array:%s", self._react_to_signal,self._device_number,self._state, self._device_name,self._satel.trouble )
         elif self._react_to_signal == SIGNAL_TROUBLE2_UPDATED:
             if self._device_number in self._satel.trouble2:
                 self._state = 1
             else:
                 self._state = 0
-            _LOGGER.debug(" _react_to_signal %s, device_number:%s, _state:%s , device_name:%s, array:%s", self._react_to_signal,self._device_number,self._state, self._device_name,self._satel.trouble2 )
+            #_LOGGER.debug(" _react_to_signal %s, device_number:%s, _state:%s , device_name:%s, array:%s", self._react_to_signal,self._device_number,self._state, self._device_name,self._satel.trouble2 )
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, self._react_to_signal, self._devices_updated
