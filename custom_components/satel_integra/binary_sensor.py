@@ -108,7 +108,7 @@ async def async_setup_platform(
             controller, 
             zone_num, 
             zone_name, 
-            "problem", 
+            "tamper", 
             CONF_ZONES_TAMPER, 
             SIGNAL_TAMPER_UPDATED
         )
@@ -121,7 +121,7 @@ async def async_setup_platform(
             controller, 
             zone_num, 
             zone_name, 
-            "problem", 
+            "tamper", 
             CONF_ZONES_MEM_TAMPER, 
             SIGNAL_MEM_TAMPER_UPDATED
         )
