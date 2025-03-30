@@ -18,6 +18,7 @@ from .const import (
     CONF_OUTPUTS,
     CONF_ZONE_NAME,
     CONF_ZONE_TYPE,
+    CONF_ZOME_MASK,
     CONF_ZONES,
     CONF_ZONES_ALARM,
     CONF_ZONES_MEM_ALARM,
@@ -107,7 +108,7 @@ async def async_setup_platform(
             controller, 
             zone_num, 
             zone_name, 
-            zone_type, 
+            "problem", 
             CONF_ZONES_TAMPER, 
             SIGNAL_TAMPER_UPDATED
         )
@@ -120,36 +121,28 @@ async def async_setup_platform(
             controller, 
             zone_num, 
             zone_name, 
-            zone_type, 
+            "problem", 
             CONF_ZONES_MEM_TAMPER, 
             SIGNAL_MEM_TAMPER_UPDATED
         )
         devices.append(device)
+        
 
     for zone_num, device_config_data in configured_zones.items():
+        zone_mask = device_config_data[CONF_ZOME_MASK]
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME] + ' (masked)'
-        device = SatelIntegraBinarySensor(
-            controller, 
-            zone_num, 
-            zone_name, 
-            zone_type, 
-            CONF_ZONES_MASKED, 
-            SIGNAL_MASKED_UPDATED
-        )
-        devices.append(device)
+        if zone_mask == "yes":
+            device = SatelIntegraBinarySensor(controller, zone_num, zone_name, "problem", CONF_ZONES_MASKED, SIGNAL_MASKED_UPDATED)
+            devices.append(device)
+
     for zone_num, device_config_data in configured_zones.items():
+        zone_mask = device_config_data[CONF_ZOME_MASK]
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem masked)'
-        device = SatelIntegraBinarySensor(
-            controller, 
-            zone_num, 
-            zone_name, 
-            zone_type, 
-            CONF_ZONES_MEM_MASKED, 
-            SIGNAL_MEM_MASKED_UPDATED
-        )
-        devices.append(device)
+        if zone_mask == "yes":
+            device = SatelIntegraBinarySensor(controller, zone_num, zone_name, "problem", CONF_ZONES_MEM_MASKED, SIGNAL_MEM_MASKED_UPDATED)
+            devices.append(device)
 
     configured_outputs = discovery_info[CONF_OUTPUTS]
 
