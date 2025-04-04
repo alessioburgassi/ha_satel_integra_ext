@@ -62,6 +62,9 @@ async def async_setup_platform(
 
     devices = []
 
+    _LOGGER.debug("Zones %s", configured_zones)
+      
+
     for zone_num, device_config_data in configured_zones.items():
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME]
@@ -127,9 +130,15 @@ async def async_setup_platform(
         )
         devices.append(device)
         
-
+    
     for zone_num, device_config_data in configured_zones.items():
-        zone_mask = device_config_data[CONF_ZOME_MASK]
+        
+        try:
+            zone_mask = device_config_data[CONF_ZOME_MASK]
+        except KeyError:
+
+            zone_mask = "no"
+        
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME] + ' (masked)'
         if zone_mask == "yes":
@@ -137,7 +146,10 @@ async def async_setup_platform(
             devices.append(device)
 
     for zone_num, device_config_data in configured_zones.items():
-        zone_mask = device_config_data[CONF_ZOME_MASK]
+        try:
+            zone_mask = device_config_data[CONF_ZOME_MASK]
+        except KeyError:
+            zone_mask = "no"
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem masked)'
         if zone_mask == "yes":
