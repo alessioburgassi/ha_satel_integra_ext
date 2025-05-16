@@ -32,6 +32,8 @@ STATE_MAP = OrderedDict(
     [
         (AlarmState.TRIGGERED, AlarmControlPanelState.TRIGGERED),
         (AlarmState.TRIGGERED_FIRE, AlarmControlPanelState.TRIGGERED),
+        (AlarmState.TRIGGERED_MEM, AlarmControlPanelState.TRIGGERED),
+        (AlarmState.TRIGGERED_MEM_FIRE, AlarmControlPanelState.TRIGGERED),
         (AlarmState.ENTRY_TIME, AlarmControlPanelState.PENDING),
         (AlarmState.ARMED_MODE3, AlarmControlPanelState.ARMED_HOME),
         (AlarmState.ARMED_MODE2, AlarmControlPanelState.ARMED_HOME),
@@ -142,6 +144,7 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
         if clear_alarm_necessary:
             # Wait 1s before clearing the alarm
             await asyncio.sleep(1)
+            _LOGGER.debug("Disarming, partition is triggered, clear alarm necessary self._satel_alarm_state: %s", self._satel_alarm_state)
             await self._satel.clear_alarm(code, [self._device_number])
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
