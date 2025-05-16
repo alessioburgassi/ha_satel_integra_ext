@@ -138,7 +138,7 @@ async def async_setup_platform(
         except KeyError:
 
             zone_mask = "no"
-        
+    
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME] + ' (masked)'
         if zone_mask == "yes":
