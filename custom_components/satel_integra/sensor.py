@@ -6,7 +6,8 @@ from datetime import timedelta
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
 from homeassistant.const import UnitOfTemperature
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
@@ -35,10 +36,65 @@ async def async_setup_platform(
         [SatelIntegraTemperatureSensor(controller, sensor_num, device_config_data[CONF_TEMP_SENSOR_NAME])
             for sensor_num, device_config_data in discovery_info[CONF_TEMP_SENSORS].items()],
         update_before_add=True)
+    async_add_entities([SatelLastEventSensor(hass, entry)])
 
 PARALLEL_UPDATES = 0
 SCAN_INTERVAL = timedelta(seconds=120)
+class SatelLastEventSensor(SensorEntity):
+    """Sensor che mostra l'ultimo evento letto dalla centrale Satel Integra."""
 
+    _attr_name = "Satel Ultimo Evento"
+    _attr_icon = "mdi:timeline-text-outline"
+    _attr_should_poll = False
+    _attr_has_entity_name = True
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry):
+        """Initialize the sensor."""
+        self._hass = hass
+        self._entry_id = entry.entry_id
+        self._attr_unique_id = f"{entry.entry_id}_last_event"
+        self._attr_native_value = "Nessun evento rilevato"
+        self._attr_extra_state_attributes = {}
+
+    async def async_added_to_hass(self) -> None:
+        """Quando l'entità viene aggiunta a HA."""
+        async_dispatcher_connect(
+            self._hass,
+            f"{DOMAIN}_event_updated_{self._entry_id}",
+            self._handle_event_update,
+        )
+
+    @callback
+    def _handle_event_update(self, parsed_event: dict):
+        """Aggiorna il sensor quando arriva un nuovo evento."""
+        if not parsed_event:
+            return
+
+        ts = parsed_event.get("timestamp", "??")
+        desc = parsed_event.get("text_long", parsed_event.get("description", "Evento sconosciuto"))
+        self._attr_native_value = f"{ts} - {desc[:100]}"
+
+        self._attr_extra_state_attributes = {
+            "timestamp": parsed_event.get("timestamp"),
+            "event_code": parsed_event.get("event_code"),
+            "partition": parsed_event.get("partition"),
+            "restore": parsed_event.get("restore"),
+            "kkk": parsed_event.get("kkk"),
+            "kkk_desc": parsed_event.get("kkk_desc"),
+            "source": parsed_event.get("source"),
+            "kind": parsed_event.get("kind"),
+            "kind_desc": parsed_event.get("kind_desc"),
+            "user": parsed_event.get("user"),
+            "text_long": parsed_event.get("text_long"),
+            "s1": parsed_event.get("s1"),
+            "s1_desc": parsed_event.get("s1_desc"),
+            "s2": parsed_event.get("s2"),
+            "s2_desc": parsed_event.get("s2_desc"),
+            "index": parsed_event.get("index"),          # es. "BF0133"
+            "index_dec": parsed_event.get("index_dec"),  # es. 12345678
+        }
+
+        self.async_write_ha_state()
 class SatelIntegraTemperatureSensor(SatelIntegraEntity, SensorEntity):
     """Representation of an Satel Integra temperature sensor."""
 
