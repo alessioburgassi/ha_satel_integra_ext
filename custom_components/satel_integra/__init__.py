@@ -13,7 +13,8 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     _LOGGER, DOMAIN, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE,CONF_KEYPAD,CONF_TROUBLE,CONF_TROUBLE2,
-    CONF_ZONES, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY,DEFAULT_ZONE_MASK,CONF_ZOME_MASK,
+    CONF_ZONES, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY,DEFAULT_ZONE_MASK,CONF_ZONE_MASK,
+    DEFAULT_ZONE_TAMPER,CONF_ZONE_TAMPER,
     DEFAULT_PORT, DEFAULT_CONF_ARM_HOME_MODE, DEFAULT_ZONE_TYPE,CONF_EXPANDER_BATTERY,DEFAULT_EXPANDER_BATTERY,
     DATA_SATEL, CONF_EXPANDER, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE, CONF_ZONE_NAME, CONF_ZONE_TYPE,
     CONF_ZONES,CONF_ZONES_ALARM,CONF_ZONES_MEM_ALARM,CONF_ZONES_TAMPER,CONF_ZONES_MEM_TAMPER,CONF_ZONES_BYPASS,CONF_ZONES_MASKED,CONF_ZONES_MEM_MASKED, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS,CONF_SWITCHABLE_BYPASS, CONF_INTEGRATION_KEY, CONF_TEMP_SENSOR_NAME,
@@ -24,7 +25,8 @@ ZONE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_ZONE_NAME): cv.string,
         vol.Optional(CONF_ZONE_TYPE, default=DEFAULT_ZONE_TYPE): cv.string,
-        vol.Optional(CONF_ZOME_MASK, default=DEFAULT_ZONE_MASK): cv.string,
+        vol.Optional(CONF_ZONE_MASK, default=DEFAULT_ZONE_MASK): cv.string,
+        vol.Optional(CONF_ZONE_TAMPER, default=DEFAULT_ZONE_TAMPER): cv.string,
 
     }
 )
@@ -50,7 +52,7 @@ EDITABLE_OUTPUT_SCHEMA = vol.Schema({vol.Required(CONF_ZONE_NAME): cv.string})
 PARTITION_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_ZONE_NAME): cv.string,
-        vol.Optional(CONF_ARM_HOME_MODE, default=DEFAULT_CONF_ARM_HOME_MODE): vol.In(
+        vol.Optional(CONF_ARM_HOME_MODE): vol.In(
             [1, 2, 3]
         ),
     }
@@ -60,6 +62,7 @@ TEMP_SENSOR_SCHEMA = vol.Schema(
         vol.Required(CONF_TEMP_SENSOR_NAME): cv.string,
     }
 )
+
 
 def is_alarm_code_necessary(value):
     """Check if alarm code must be configured."""
@@ -106,10 +109,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     expanders = conf.get(CONF_EXPANDER)
     keypad = conf.get(CONF_KEYPAD)
     trouble = conf.get(CONF_TROUBLE)
+    partitions = conf.get(CONF_DEVICE_PARTITIONS)
     
     host = conf.get(CONF_HOST)
     port = conf.get(CONF_PORT)
-    partitions = conf.get(CONF_DEVICE_PARTITIONS)
+   
     integration_key = conf.get(CONF_INTEGRATION_KEY)
 
     monitored_outputs = collections.OrderedDict(
@@ -138,10 +142,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         configured_trouble2.append(zone_num+ 64 + 64 + 8)
         configured_trouble2.append(zone_num+ 64 + 64 + 8 + 8 + 64)
         configured_trouble2.append(zone_num+ 64 + 64 + 8 + 8 + 64 + 8)
-
-
+     # --- CREAZIONE ARRAY PARTITIONS_HOME ---
+    partitions_home = []
+    if partitions:
+        for part_num, part_data in partitions.items():
+            if CONF_ARM_HOME_MODE in part_data:
+                partitions_home.append(part_num)
+    # ---------------------------------------
+    
     controller = AsyncSatel(
-        host, port, hass.loop, zones, monitored_outputs, partitions, configured_trouble,configured_trouble2) #, integration_key)
+        host, port, hass.loop, zones, monitored_outputs, partitions, partitions_home, configured_trouble,configured_trouble2) #, integration_key)
 
     hass.data[DATA_SATEL] = controller
 
@@ -159,7 +169,26 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     _LOGGER.debug("Arm home config: %s, mode: %s ", conf, conf.get(CONF_ARM_HOME_MODE))
 
     hass.async_create_task(
-        async_load_platform(hass, Platform.ALARM_CONTROL_PANEL, DOMAIN, conf, config)
+        async_load_platform(hass, 
+            Platform.ALARM_CONTROL_PANEL,
+            DOMAIN,
+            {
+                CONF_DEVICE_PARTITIONS: partitions,
+            },
+            config
+        )
+    )
+    hass.async_create_task(
+        async_load_platform(hass, 
+            Platform.BUTTON,
+            DOMAIN,
+            {
+                CONF_DEVICE_PARTITIONS: partitions,
+                CONF_SWITCHABLE_OUTPUTS: switchable_outputs,
+                CONF_DEVICE_CODE: conf.get(CONF_DEVICE_CODE),
+            },
+            config
+        )
     )
 
     hass.async_create_task(
@@ -167,8 +196,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             hass,
             Platform.BINARY_SENSOR,
             DOMAIN,
-            {CONF_ZONES: zones, CONF_OUTPUTS: outputs,CONF_EXPANDER: expanders, CONF_KEYPAD: keypad, CONF_TROUBLE:trouble},
-            config,
+            {
+                CONF_ZONES: zones,
+                CONF_OUTPUTS: outputs,
+                CONF_EXPANDER: expanders, 
+                CONF_KEYPAD: keypad, 
+                CONF_TROUBLE: trouble
+            },
+            config
         )
     )
 
