@@ -62,6 +62,10 @@ async def async_setup_platform(
     for partition_num, device_config_data in configured_partitions.items():
         zone_name = device_config_data[CONF_ZONE_NAME]
         arm_home_mode = device_config_data.get(CONF_ARM_HOME_MODE)
+        
+        # Aggiungiamo un log per vedere quali dati vengono letti dalla configurazione
+        _LOGGER.debug("Creazione in corso per la partizione %s (Nome: %s, Modalità Casa: %s)", partition_num, zone_name, arm_home_mode)
+        
         device = SatelIntegraAlarmPanel(
             controller, zone_name, arm_home_mode, partition_num
         )
@@ -74,10 +78,6 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
 
     _attr_code_format = alarm.CodeFormat.NUMBER
     _attr_should_poll = False
-    _attr_supported_features = (
-        AlarmControlPanelEntityFeature.ARM_HOME
-        | AlarmControlPanelEntityFeature.ARM_AWAY
-    )
 
     def __init__(self, controller, name, arm_home_mode, partition_id):
         """Initialize the alarm panel."""
@@ -85,7 +85,10 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
         self._arm_home_mode = arm_home_mode
         self._device_number = partition_id
         self._satel_alarm_state = self._read_alarm_state()
-    
+        
+        # Aggiungiamo un log per confermare che l'entità è stata inizializzata con successo
+        _LOGGER.info("Inizializzata con successo l'entità pannello allarme per la partizione: %s (%s)", self._device_number, name)
+
     async def async_added_to_hass(self) -> None:
         """Update alarm status and register callbacks for future updates."""
         _LOGGER.debug("Starts listening for panel messages")
@@ -94,7 +97,6 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
                 self.hass, SIGNAL_PANEL_MESSAGE, self._update_alarm_status
             )
         )
-
 
     @callback
     def _update_alarm_status(self):
@@ -137,7 +139,7 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
 
         clear_alarm_necessary = self._satel_alarm_state == AlarmControlPanelState.TRIGGERED
 
-        _LOGGER.debug("Disarming, self._satel_alarm_state: %s", self._satel_alarm_state)
+        _LOGGER.debug("Disarming partition %s", self._device_number)
 
         await self._satel.disarm(code, [self._device_number])
 
@@ -149,17 +151,33 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
         """Send arm away command."""
-        _LOGGER.debug("Arming away")
+        _LOGGER.debug("Arming away partition %s",self._device_number)
 
         if code:
             await self._satel.arm(code, [self._device_number])
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Send arm home command."""
-        _LOGGER.debug("Arming home")
+        _LOGGER.debug("Arming home partition %s",self._device_number)
 
         if code:
             await self._satel.arm(code, [self._device_number], self._arm_home_mode)
+
+    @property
+    def supported_features(self) -> int:
+        """Return the list of supported features."""
+        # Ripristiniamo la logica dinamica:
+        # Se arm_home_mode è configurato, mostra entrambi i bottoni
+        if self._arm_home_mode is not None:
+            features = (
+                AlarmControlPanelEntityFeature.ARM_HOME
+                | AlarmControlPanelEntityFeature.ARM_AWAY
+            )
+        else:
+            # Altrimenti mostra solo il bottone Fuori Casa (AWAY)
+            features = AlarmControlPanelEntityFeature.ARM_AWAY
+       
+        return features
 
     @property
     def alarm_state(self) -> AlarmControlPanelState | None:
