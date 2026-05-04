@@ -18,7 +18,8 @@ from .const import (
     CONF_OUTPUTS,
     CONF_ZONE_NAME,
     CONF_ZONE_TYPE,
-    CONF_ZOME_MASK,
+    CONF_ZONE_MASK,
+    CONF_ZONE_TAMPER,
     CONF_ZONES,
     CONF_ZONES_ALARM,
     CONF_ZONES_MEM_ALARM,
@@ -105,38 +106,32 @@ async def async_setup_platform(
         devices.append(device)
 
     for zone_num, device_config_data in configured_zones.items():
+        try:
+            zone_tamper = device_config_data[CONF_ZONE_TAMPER]
+        except KeyError:
+            zone_tamper = "no"
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME] + ' (tamper)'
-        device = SatelIntegraBinarySensor(
-            controller, 
-            zone_num, 
-            zone_name, 
-            "tamper", 
-            CONF_ZONES_TAMPER, 
-            SIGNAL_TAMPER_UPDATED
-        )
-        devices.append(device)
+        if zone_tamper == "yes":
+            device = SatelIntegraBinarySensor(controller, zone_num, zone_name, "tamper", CONF_ZONES_TAMPER, SIGNAL_TAMPER_UPDATED)
+            devices.append(device)
 
     for zone_num, device_config_data in configured_zones.items():
+        try:
+            zone_tamper = device_config_data[CONF_ZONE_TAMPER]
+        except KeyError:
+            zone_tamper = "no"
         zone_type = device_config_data[CONF_ZONE_TYPE]
         zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem tamper)'
-        device = SatelIntegraBinarySensor(
-            controller, 
-            zone_num, 
-            zone_name, 
-            "tamper", 
-            CONF_ZONES_MEM_TAMPER, 
-            SIGNAL_MEM_TAMPER_UPDATED
-        )
-        devices.append(device)
+        if zone_tamper == "yes":
+             device = SatelIntegraBinarySensor(controller, zone_num, zone_name, "tamper", CONF_ZONES_MEM_TAMPER, SIGNAL_MEM_TAMPER_UPDATED)
+             devices.append(device)
         
     
     for zone_num, device_config_data in configured_zones.items():
-        
         try:
-            zone_mask = device_config_data[CONF_ZOME_MASK]
+            zone_mask = device_config_data[CONF_ZONE_MASK]
         except KeyError:
-
             zone_mask = "no"
     
         zone_type = device_config_data[CONF_ZONE_TYPE]
@@ -147,7 +142,7 @@ async def async_setup_platform(
 
     for zone_num, device_config_data in configured_zones.items():
         try:
-            zone_mask = device_config_data[CONF_ZOME_MASK]
+            zone_mask = device_config_data[CONF_ZONE_MASK]
         except KeyError:
             zone_mask = "no"
         zone_type = device_config_data[CONF_ZONE_TYPE]
@@ -223,9 +218,7 @@ class SatelIntegraBinarySensor(SatelIntegraEntity, BinarySensorEntity):
 
     _attr_should_poll = False
 
-    def __init__(
-        self, controller, device_number, device_name, zone_type, device_type, react_to_signal
-    ):
+    def __init__(self, controller, device_number, device_name, zone_type, device_type, react_to_signal):
         """Initialize the binary_sensor."""
         super().__init__(controller, device_number, device_name, device_type)
         self._zone_type = zone_type
