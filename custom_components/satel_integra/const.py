@@ -11,6 +11,7 @@ DEFAULT_DEVICE_PARTITION = 1
 DEFAULT_ZONE_TYPE = "motion"
 DEFAULT_EXPANDER_BATTERY = "no"
 DEFAULT_ZONE_MASK = "no"
+DEFAULT_ZONE_TAMPER = "no"
 DATA_SATEL = "satel_integra"
 
 CONF_DEVICE_CODE = "code"
@@ -18,11 +19,14 @@ CONF_DEVICE_PARTITIONS = "partitions"
 CONF_ARM_HOME_MODE = "arm_home_mode"
 CONF_ZONE_NAME = "name"
 CONF_EXPANDER_BATTERY = "battery"
-CONF_ZOME_MASK ="mask"
+CONF_ZONE_MASK ="mask"
+CONF_ZONE_TAMPER ="tamper"
+
 CONF_EXPANDER ="expander"
 CONF_KEYPAD ="keypad"
 CONF_TROUBLE ="trouble"
 CONF_TROUBLE2 ="trouble2"
+CONF_PARTITION_RESET = "partition_reset"
 
 CONF_ZONE_TYPE = "type"
 CONF_ZONES = "zones"
