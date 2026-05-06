@@ -20,9 +20,13 @@ _LOGGER = logging.getLogger(__name__)
 from .entity import SatelIntegraEntity
 from .const import (
     CONF_OUTPUTS,
-    CONF_DEVICE_PARTITIONS,
+    CONF_PARTITIONS,
     CONF_PARTITION_RESET,
-    CONF_ZONE_NAME,
+    CONF_BUTTON_OUTPUTS,
+    CONF_SWITCHABLE_OUTPUTS,
+    SIGNAL_PARTITION_RESET_UPDATED,
+    SIGNAL_BUTTON_UPDATED,
+    CONF_NAME,
     DATA_SATEL,
     CONF_DEVICE_CODE
 )
@@ -39,21 +43,30 @@ async def async_setup_platform(
 
     # Scrive nel log l'intero contenuto di discovery_info.
     # Usiamo %s per fare in modo che Python converta il dizionario in stringa.
-    _LOGGER.info("Contenuto di discovery_info: %s", discovery_info)
-
-    configured_partitions = discovery_info[CONF_DEVICE_PARTITIONS]
+    configured_partitions = discovery_info[CONF_PARTITIONS]
+    configured_output = discovery_info[CONF_SWITCHABLE_OUTPUTS]
     controller = hass.data[DATA_SATEL]
 
     devices = []
 
     for partition_num, device_config_data in configured_partitions.items():
-        zone_name = device_config_data[CONF_ZONE_NAME]
+        name = device_config_data[CONF_NAME] + " Reset"
         
         # Aggiungiamo un log per vedere quali dati vengono letti dalla configurazione
-        _LOGGER.debug("Creazione in corso per reset partizione %s (Nome: %s)", partition_num, zone_name)
-        device = SatelIntegraButton(controller, partition_num,discovery_info[CONF_DEVICE_CODE],zone_name + " Reset", CONF_PARTITION_RESET)
+        device = SatelIntegraButton(controller, partition_num,name,discovery_info[CONF_DEVICE_CODE], CONF_PARTITION_RESET,SIGNAL_PARTITION_RESET_UPDATED)
         devices.append(device)
-
+        
+    #OUTPUT ADD
+    for output_num, device_config_data in configured_output.items():
+        name = device_config_data[CONF_NAME]
+        try:
+            type = device_config_data[CONF_BUTTON_OUTPUTS]
+        except KeyError:
+            type = "no"
+        if type == "yes":
+            device = SatelIntegraButton( controller, output_num, name, discovery_info[CONF_DEVICE_CODE],CONF_BUTTON_OUTPUTS,SIGNAL_BUTTON_UPDATED)
+            devices.append(device)
+            
     async_add_entities(devices)
 
 
@@ -62,15 +75,18 @@ class SatelIntegraButton(SatelIntegraEntity, ButtonEntity):
     _attr_has_entity_name = False
     _attr_should_poll = False
 
-    def __init__(self, controller, partition_num, code, partition_name, device_type):
+    def __init__(self, controller, button_num,button_name, code, device_type,react_to_signal):
         """Initialize the binary_sensor."""
-        super().__init__(controller, partition_num, partition_name, device_type) # should be "switch")
-        self._state = False
-        self._device_number = partition_num
-        self._device_type = device_type
+        super().__init__(controller, button_num, button_name, device_type) # should be "switch")
+    
+        self._react_to_signal = react_to_signal
         self._code = code
 
     async def async_press(self) -> None:
-        _LOGGER.debug( "COMMAND BUTTON PRESSED: name: %s  number %s: type:%s", self._name, self._device_number, self._device_type)
-        await self._satel.clear_alarm(self._code,[self._device_number])
-        
+        if self._react_to_signal == SIGNAL_PARTITION_RESET_UPDATED:
+            _LOGGER.debug("COMMAND PARTITION ALARM RESET name: %s, number: %s", self._name, self._device_number)
+            await self._satel.clear_alarm(self._code,[self._device_number])
+        if self._react_to_signal == SIGNAL_BUTTON_UPDATED:
+            _LOGGER.debug("COMMAND OUTPUT BUTTON ON %s: name: %s, number:%s, turning ON", self._react_to_signal, self._name, self._device_number)
+            await self._satel.set_output(self._code, self._device_number, True)
+            self.async_write_ha_state()
