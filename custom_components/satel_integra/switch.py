@@ -13,8 +13,9 @@ from .entity import SatelIntegraEntity
 from . import (
     CONF_DEVICE_CODE,
     CONF_SWITCHABLE_OUTPUTS,
+    CONF_BUTTON_OUTPUTS,
     CONF_SWITCHABLE_BYPASS,
-    CONF_ZONE_NAME,
+    CONF_NAME,
     CONF_ZONES,
     DATA_SATEL,
     SIGNAL_OUTPUTS_UPDATED,
@@ -42,25 +43,23 @@ async def async_setup_platform(
 
     devices = []
 
-    for zone_num, device_config_data in configured_output.items():
-        zone_name = device_config_data[CONF_ZONE_NAME]
+    #OUTPUT ADD
+    for output_num, device_config_data in configured_output.items():
+        name = device_config_data[CONF_NAME]
+        try:
+            type = device_config_data[CONF_BUTTON_OUTPUTS]
+        except KeyError:
+            type = "no"
+        if type == "no":
+            device = SatelIntegraSwitch(controller, output_num, name, discovery_info[CONF_DEVICE_CODE],CONF_SWITCHABLE_OUTPUTS,SIGNAL_OUTPUTS_UPDATED)
+            devices.append(device)
+    #BYPASS ZONE ADD
+    for zone_num, device_config_data in configured_zones.items():
+        name = device_config_data[CONF_NAME] + ' (bypass)' 
 
-        device = SatelIntegraSwitch(
-            controller, zone_num, zone_name, discovery_info[CONF_DEVICE_CODE],CONF_SWITCHABLE_OUTPUTS,SIGNAL_OUTPUTS_UPDATED
-        )
-
+        device = SatelIntegraSwitch(controller, zone_num, name, discovery_info[CONF_DEVICE_CODE], CONF_SWITCHABLE_BYPASS, SIGNAL_BYPASS_UPDATED)
         devices.append(device)
-#BYPASS ADD
-    for output_num, device_config_data in configured_zones.items():
-        output_name = device_config_data[CONF_ZONE_NAME] + ' (bypass)' 
-
-        device = SatelIntegraSwitch(
-            controller, output_num, output_name, discovery_info[CONF_DEVICE_CODE], CONF_SWITCHABLE_BYPASS, SIGNAL_BYPASS_UPDATED
-        )
-        devices.append(device)
-
-
-
+        
     async_add_entities(devices)
 
 
@@ -75,7 +74,7 @@ class SatelIntegraSwitch(SatelIntegraEntity, SwitchEntity):
         self._state = False
         self._code = code
         
-        self._device_type = device_type
+       # self._device_type = device_type
         self._react_to_signal = react_to_signal
 
     async def async_added_to_hass(self) -> None:
@@ -118,42 +117,27 @@ class SatelIntegraSwitch(SatelIntegraEntity, SwitchEntity):
         if new_state != self._state:
             self._state = new_state
             self.async_write_ha_state()
-        _LOGGER.debug(
-            "BYPASS SWITCH UPDATE STATUS name: %s, number:%s, old_state:%s, new_state:%s zones: %s",
-            self._name, self._device_number, self._state, new_state, zones
-        )
+        _LOGGER.debug("BYPASS SWITCH UPDATE STATUS name: %s, number:%s, old_state:%s, new_state:%s zones: %s",self._name, self._device_number, self._state, new_state, zones)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the device on."""
         if self._react_to_signal == SIGNAL_OUTPUTS_UPDATED:
-            _LOGGER.debug(
-                "COMMAND SWITCH ON %s: name: %s  number %s: type:%s status: %s, turning ON",
-                self._react_to_signal, self._name, self._device_number, self._device_type, self._state
-            )
+            _LOGGER.debug("COMMAND SWITCH ON %s: name: %s  number %s: type:%s status: %s, turning ON",self._react_to_signal, self._name, self._device_number, self._device_type, self._state)
             await self._satel.set_output(self._code, self._device_number, True)
             self.async_write_ha_state()
         if self._react_to_signal == SIGNAL_BYPASS_UPDATED:
-            _LOGGER.debug(
-                "COMMAND ZONE BYPASS %s: name: %s  number %s: type:%s status: %s, turning ON",
-                self._react_to_signal, self._name, self._device_number, self._device_type, self._state
-            )
+            _LOGGER.debug("COMMAND ZONE BYPASS %s: name: %s  number %s: type:%s status: %s, turning ON",self._react_to_signal, self._name, self._device_number, self._device_type, self._state)
             await self._satel.set_bypass(self._code, self._device_number, True)
             self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the device off."""
         if self._react_to_signal == SIGNAL_OUTPUTS_UPDATED:
-            _LOGGER.debug(
-                "COMMAND SWITCH OFF %s: name: %s  number %s: type:%s status: %s, turning OFF",
-                self._react_to_signal, self._name, self._device_number, self._device_type, self._state
-            )
+            _LOGGER.debug("COMMAND SWITCH OFF %s: name: %s  number %s: type:%s status: %s",self._react_to_signal, self._name, self._device_number, self._device_type, self._state)
             await self._satel.set_output(self._code, self._device_number, False)
             self.async_write_ha_state()
         if self._react_to_signal == SIGNAL_BYPASS_UPDATED:
-            _LOGGER.debug(
-                "COMMAND ZONE UN-BYPASS %s: name: %s  number %s: type:%s status: %s, turning OFF",
-                self._react_to_signal, self._name, self._device_number, self._device_type, self._state
-            )
+            _LOGGER.debug("COMMAND ZONE UN-BYPASS %s: name: %s  number %s: type:%s status: %s",self._react_to_signal, self._name, self._device_number, self._device_type, self._state)
             await self._satel.set_bypass(self._code, self._device_number, False)
             self.async_write_ha_state()
 
