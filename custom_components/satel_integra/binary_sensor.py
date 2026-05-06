@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 from .entity import SatelIntegraEntity
 from .const import (
     CONF_OUTPUTS,
-    CONF_ZONE_NAME,
+    CONF_NAME,
     CONF_ZONE_TYPE,
     CONF_ZONE_MASK,
     CONF_ZONE_TAMPER,
@@ -63,12 +63,9 @@ async def async_setup_platform(
 
     devices = []
 
-    _LOGGER.debug("Zones %s", configured_zones)
-      
-
     for zone_num, device_config_data in configured_zones.items():
         zone_type = device_config_data[CONF_ZONE_TYPE]
-        zone_name = device_config_data[CONF_ZONE_NAME]
+        zone_name = device_config_data[CONF_NAME]
         device = SatelIntegraBinarySensor(
             controller, 
             zone_num, 
@@ -81,7 +78,7 @@ async def async_setup_platform(
 
     for zone_num, device_config_data in configured_zones.items():
         zone_type = device_config_data[CONF_ZONE_TYPE]
-        zone_name = device_config_data[CONF_ZONE_NAME] + ' (alarm)'
+        zone_name = device_config_data[CONF_NAME] + ' (alarm)'
         device = SatelIntegraBinarySensor(
             controller, 
             zone_num, 
@@ -94,7 +91,7 @@ async def async_setup_platform(
 
     for zone_num, device_config_data in configured_zones.items():
         zone_type = device_config_data[CONF_ZONE_TYPE]
-        zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem alarm)'
+        zone_name = device_config_data[CONF_NAME] + ' (mem alarm)'
         device = SatelIntegraBinarySensor(
             controller, 
             zone_num, 
@@ -111,7 +108,7 @@ async def async_setup_platform(
         except KeyError:
             zone_tamper = "no"
         zone_type = device_config_data[CONF_ZONE_TYPE]
-        zone_name = device_config_data[CONF_ZONE_NAME] + ' (tamper)'
+        zone_name = device_config_data[CONF_NAME] + ' (tamper)'
         if zone_tamper == "yes":
             device = SatelIntegraBinarySensor(controller, zone_num, zone_name, "tamper", CONF_ZONES_TAMPER, SIGNAL_TAMPER_UPDATED)
             devices.append(device)
@@ -122,7 +119,7 @@ async def async_setup_platform(
         except KeyError:
             zone_tamper = "no"
         zone_type = device_config_data[CONF_ZONE_TYPE]
-        zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem tamper)'
+        zone_name = device_config_data[CONF_NAME] + ' (mem tamper)'
         if zone_tamper == "yes":
              device = SatelIntegraBinarySensor(controller, zone_num, zone_name, "tamper", CONF_ZONES_MEM_TAMPER, SIGNAL_MEM_TAMPER_UPDATED)
              devices.append(device)
@@ -135,7 +132,7 @@ async def async_setup_platform(
             zone_mask = "no"
     
         zone_type = device_config_data[CONF_ZONE_TYPE]
-        zone_name = device_config_data[CONF_ZONE_NAME] + ' (masked)'
+        zone_name = device_config_data[CONF_NAME] + ' (masked)'
         if zone_mask == "yes":
             device = SatelIntegraBinarySensor(controller, zone_num, zone_name, "problem", CONF_ZONES_MASKED, SIGNAL_MASKED_UPDATED)
             devices.append(device)
@@ -146,7 +143,7 @@ async def async_setup_platform(
         except KeyError:
             zone_mask = "no"
         zone_type = device_config_data[CONF_ZONE_TYPE]
-        zone_name = device_config_data[CONF_ZONE_NAME] + ' (mem masked)'
+        zone_name = device_config_data[CONF_NAME] + ' (mem masked)'
         if zone_mask == "yes":
             device = SatelIntegraBinarySensor(controller, zone_num, zone_name, "problem", CONF_ZONES_MEM_MASKED, SIGNAL_MEM_MASKED_UPDATED)
             devices.append(device)
@@ -155,18 +152,16 @@ async def async_setup_platform(
 
     for output_num, device_config_data in configured_outputs.items():
         output_type = device_config_data[CONF_ZONE_TYPE]
-        output_name = device_config_data[CONF_ZONE_NAME]
+        output_name = device_config_data[CONF_NAME]
         device = SatelIntegraBinarySensor(
             controller, output_num, output_name, output_type, "output", SIGNAL_OUTPUTS_UPDATED
         )
         devices.append(device)
     
     configured_expanders = discovery_info[CONF_EXPANDER]
-
-    _LOGGER.debug("Expander %s", configured_expanders)
-            
+       
     for zone_num, device_config_data in configured_expanders.items():
-        zone_name = device_config_data[CONF_ZONE_NAME]
+        zone_name = device_config_data[CONF_NAME]
         battery = device_config_data[CONF_EXPANDER_BATTERY]
         
         device = SatelIntegraBinarySensor(controller, zone_num+1, zone_name + " (no comm)", "problem", CONF_TROUBLE2, SIGNAL_TROUBLE2_UPDATED)
@@ -186,19 +181,17 @@ async def async_setup_platform(
         
 
     configured_trouble = discovery_info[CONF_TROUBLE]
-    _LOGGER.debug("Trouble %s", configured_trouble)
-
+    
     for zone_num, device_config_data in configured_trouble.items():
-        zone_name = device_config_data[CONF_ZONE_NAME]
+        zone_name = device_config_data[CONF_NAME]
         
         device = SatelIntegraBinarySensor(controller, zone_num + 320, zone_name, "problem", CONF_TROUBLE, SIGNAL_TROUBLE_UPDATED)
         devices.append(device)
     
     configured_keypad = discovery_info[CONF_KEYPAD]
-    _LOGGER.debug("Keypad %s", configured_keypad)
-
+    
     for zone_num, device_config_data in configured_keypad.items():
-        zone_name = device_config_data[CONF_ZONE_NAME]
+        zone_name = device_config_data[CONF_NAME]
         
         device = SatelIntegraBinarySensor(controller, zone_num +1+ 64 + 64, zone_name + " (no comm)", "problem", CONF_TROUBLE2, SIGNAL_TROUBLE2_UPDATED)
         devices.append(device)
@@ -222,14 +215,12 @@ class SatelIntegraBinarySensor(SatelIntegraEntity, BinarySensorEntity):
         """Initialize the binary_sensor."""
         super().__init__(controller, device_number, device_name, device_type)
         self._zone_type = zone_type
-        self._device_name = device_name
         self._state = 0
-        self._attr_unique_id = f"satel_{device_type}_{zone_type}_{device_number}"
         self._react_to_signal = react_to_signal
 
     async def async_added_to_hass(self) -> None:
         """Initialize state and register callbacks."""
-        
+
         # Safely read initial state
         if self._react_to_signal == SIGNAL_OUTPUTS_UPDATED:
             outputs = getattr(self._satel, "violated_outputs", None)
