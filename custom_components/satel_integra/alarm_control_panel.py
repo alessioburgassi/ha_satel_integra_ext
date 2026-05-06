@@ -22,8 +22,8 @@ _LOGGER = logging.getLogger(__name__)
 from .entity import SatelIntegraEntity
 from .const import (
     CONF_ARM_HOME_MODE,
-    CONF_DEVICE_PARTITIONS,
-    CONF_ZONE_NAME,
+    CONF_PARTITIONS,
+    CONF_NAME,
     DATA_SATEL,
     SIGNAL_PANEL_MESSAGE,
 )
@@ -54,20 +54,17 @@ async def async_setup_platform(
     if not discovery_info:
         return
 
-    configured_partitions = discovery_info[CONF_DEVICE_PARTITIONS]
+    configured_partitions = discovery_info[CONF_PARTITIONS]
     controller = hass.data[DATA_SATEL]
 
     devices = []
 
     for partition_num, device_config_data in configured_partitions.items():
-        zone_name = device_config_data[CONF_ZONE_NAME]
+        zone_name = device_config_data[CONF_NAME]
         arm_home_mode = device_config_data.get(CONF_ARM_HOME_MODE)
         
-        # Aggiungiamo un log per vedere quali dati vengono letti dalla configurazione
-        _LOGGER.debug("Creazione in corso per la partizione %s (Nome: %s, Modalità Casa: %s)", partition_num, zone_name, arm_home_mode)
-        
         device = SatelIntegraAlarmPanel(
-            controller, zone_name, arm_home_mode, partition_num
+            controller, partition_num, zone_name, arm_home_mode ,CONF_PARTITIONS
         )
         devices.append(device)
 
@@ -79,16 +76,12 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
     _attr_code_format = alarm.CodeFormat.NUMBER
     _attr_should_poll = False
 
-    def __init__(self, controller, name, arm_home_mode, partition_id):
+    def __init__(self, controller, partition_id, name, arm_home_mode ,device_type):
         """Initialize the alarm panel."""
-        super().__init__(controller, partition_id, name, "zone")
+        super().__init__(controller, partition_id, name, device_type)
         self._arm_home_mode = arm_home_mode
-        self._device_number = partition_id
         self._satel_alarm_state = self._read_alarm_state()
         
-        # Aggiungiamo un log per confermare che l'entità è stata inizializzata con successo
-        _LOGGER.info("Inizializzata con successo l'entità pannello allarme per la partizione: %s (%s)", self._device_number, name)
-
     async def async_added_to_hass(self) -> None:
         """Update alarm status and register callbacks for future updates."""
         _LOGGER.debug("Starts listening for panel messages")
@@ -103,11 +96,11 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
         """Handle alarm status update."""
         state = self._read_alarm_state()
         if state != self._satel_alarm_state:
-            _LOGGER.debug("Partition %s CHANGED current: %s, old: %s", self._device_number,state,self._satel_alarm_state)
+            _LOGGER.debug("PARTITION %s CHANGED current: %s, old: %s", self._device_number,state,self._satel_alarm_state)
             self._satel_alarm_state = state
             self.async_write_ha_state()
         else:
-            _LOGGER.debug("Partition %s NOT CHANGED state: %s", self._device_number,state)
+            _LOGGER.debug("PARTITION %s NOT CHANGED state: %s", self._device_number,state)
             
 
     def _read_alarm_state(self):
@@ -119,7 +112,7 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
         if not self._satel.connected:
             return None
 
-        _LOGGER.debug("State map of Satel: %s", self._satel.partition_states)
+        _LOGGER.debug("PARTITION state map: %s", self._satel.partition_states)
 
         for satel_state, ha_state in STATE_MAP.items():
             if (
@@ -139,26 +132,26 @@ class SatelIntegraAlarmPanel(SatelIntegraEntity, alarm.AlarmControlPanelEntity):
 
         clear_alarm_necessary = self._satel_alarm_state == AlarmControlPanelState.TRIGGERED
 
-        _LOGGER.debug("Disarming partition %s", self._device_number)
+        _LOGGER.debug("PARTITION Disarming %s", self._device_number)
 
         await self._satel.disarm(code, [self._device_number])
 
         if clear_alarm_necessary:
             # Wait 1s before clearing the alarm
             await asyncio.sleep(1)
-            _LOGGER.debug("Disarming, partition is triggered, clear alarm necessary self._satel_alarm_state: %s", self._satel_alarm_state)
+            _LOGGER.debug("PARTITION DISARMED is on ALARM, clear alarm necessary self._satel_alarm_state: %s", self._satel_alarm_state)
             await self._satel.clear_alarm(code, [self._device_number])
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
         """Send arm away command."""
-        _LOGGER.debug("Arming away partition %s",self._device_number)
+        _LOGGER.debug("PARTITION Arming away: %s",self._device_number)
 
         if code:
             await self._satel.arm(code, [self._device_number])
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Send arm home command."""
-        _LOGGER.debug("Arming home partition %s",self._device_number)
+        _LOGGER.debug("PARTITION Arming home partition: %s",self._device_number)
 
         if code:
             await self._satel.arm(code, [self._device_number], self._arm_home_mode)
