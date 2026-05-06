@@ -23,7 +23,7 @@ class SatelIntegraEntity(Entity):
         self._device_type = device_type
         self._attr_unique_id = f"${DOMAIN}.{device_type}${device_number}"
         
-        _LOGGER.info("SatelIntegraEntity.__init__ ### %s - %s", self._attr_unique_id, self._name)
+        _LOGGER.info("SatelIntegraEntity.__init__  attr_unique_id:%s - name:%s", self._attr_unique_id, self._name)
 
     @property
     def name(self):
