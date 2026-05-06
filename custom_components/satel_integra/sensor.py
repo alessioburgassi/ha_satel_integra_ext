@@ -15,7 +15,7 @@ from .entity import SatelIntegraEntity
 from .const import (
     DATA_SATEL,
     CONF_TEMP_SENSORS,
-    CONF_TEMP_SENSOR_NAME,
+    CONF_NAME,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,39 +30,41 @@ async def async_setup_platform(
     if not discovery_info:
         return
 
+    configured_temp = discovery_info[CONF_TEMP_SENSORS]
     controller = hass.data[DATA_SATEL]
 
-    async_add_entities(
-        [SatelIntegraTemperatureSensor(controller, sensor_num, device_config_data[CONF_TEMP_SENSOR_NAME])
-            for sensor_num, device_config_data in discovery_info[CONF_TEMP_SENSORS].items()],
-        update_before_add=True)
-    async_add_entities([SatelLastEventSensor(hass, entry)])
+    devices = []
 
-PARALLEL_UPDATES = 0
-SCAN_INTERVAL = timedelta(seconds=120)
-class SatelLastEventSensor(SensorEntity):
+    for sensor_num, device_config_data in configured_temp.items():
+        name = device_config_data[CONF_NAME]
+        
+        # Aggiungiamo un log per vedere quali dati vengono letti dalla configurazione
+        device = SatelIntegraTemperatureSensor(controller, sensor_num, device_config_data[CONF_NAME])
+        devices.append(device)
+        
+    devices.append(SatelLastEventSensor(controller))
+    
+    async_add_entities(devices)
+    
+class SatelLastEventSensor(SatelIntegraEntity,SensorEntity):
     """Sensor che mostra l'ultimo evento letto dalla centrale Satel Integra."""
-
-    _attr_name = "Satel Ultimo Evento"
     _attr_icon = "mdi:timeline-text-outline"
-    _attr_should_poll = False
+    _attr_should_poll = True
     _attr_has_entity_name = True
+    def __init__(self, controller):
+        """Initialize the binary_sensor."""
+        super().__init__(controller, 0, "Satel Ultimo Evento", "satel_event") 
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry):
-        """Initialize the sensor."""
-        self._hass = hass
-        self._entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_last_event"
-        self._attr_native_value = "Nessun evento rilevato"
-        self._attr_extra_state_attributes = {}
+    async def async_update(self) -> None:
+        # generate random temperature between 20.5 and 22.5
+        _LOGGER.info("async_update satel_event")
+       
+        try:
+            event = await self._satel.read_satel_event()
+            _handle_event_update(event)
+        except TimeoutError:
+            LOGGER.error("Timeout error while reading satel_event")
 
-    async def async_added_to_hass(self) -> None:
-        """Quando l'entità viene aggiunta a HA."""
-        async_dispatcher_connect(
-            self._hass,
-            f"{DOMAIN}_event_updated_{self._entry_id}",
-            self._handle_event_update,
-        )
 
     @callback
     def _handle_event_update(self, parsed_event: dict):
@@ -95,6 +97,7 @@ class SatelLastEventSensor(SensorEntity):
         }
 
         self.async_write_ha_state()
+        
 class SatelIntegraTemperatureSensor(SatelIntegraEntity, SensorEntity):
     """Representation of an Satel Integra temperature sensor."""
 
@@ -106,11 +109,11 @@ class SatelIntegraTemperatureSensor(SatelIntegraEntity, SensorEntity):
         self, controller, device_number, device_name
     ):
         """Initialize the sensor."""
-        super().__init__(controller, device_number, device_name, "temp")
+        super().__init__(controller, device_number, device_name, CONF_TEMP_SENSORS)
 
     async def async_update(self) -> None:
         # generate random temperature between 20.5 and 22.5
-        _LOGGER.info("async_update sensor %s", self._device_number)
+        _LOGGER.info("async_update temp sensor %s", self._device_number)
         import random
         # self._attr_native_value = float(round(random.uniform(20.5, 22.5), 1))
 
