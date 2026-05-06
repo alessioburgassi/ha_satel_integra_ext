@@ -12,18 +12,62 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
-    _LOGGER, DOMAIN, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE,CONF_KEYPAD,CONF_TROUBLE,CONF_TROUBLE2,
-    CONF_ZONES, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS, CONF_INTEGRATION_KEY,DEFAULT_ZONE_MASK,CONF_ZONE_MASK,
-    DEFAULT_ZONE_TAMPER,CONF_ZONE_TAMPER,
-    DEFAULT_PORT, DEFAULT_CONF_ARM_HOME_MODE, DEFAULT_ZONE_TYPE,CONF_EXPANDER_BATTERY,DEFAULT_EXPANDER_BATTERY,
-    DATA_SATEL, CONF_EXPANDER, CONF_DEVICE_CODE, CONF_DEVICE_PARTITIONS, CONF_ARM_HOME_MODE, CONF_ZONE_NAME, CONF_ZONE_TYPE,
-    CONF_ZONES,CONF_ZONES_ALARM,CONF_ZONES_MEM_ALARM,CONF_ZONES_TAMPER,CONF_ZONES_MEM_TAMPER,CONF_ZONES_BYPASS,CONF_ZONES_MASKED,CONF_ZONES_MEM_MASKED, CONF_OUTPUTS, CONF_TEMP_SENSORS, CONF_SWITCHABLE_OUTPUTS,CONF_SWITCHABLE_BYPASS, CONF_INTEGRATION_KEY, CONF_TEMP_SENSOR_NAME,
-    ZONES, SIGNAL_PANEL_MESSAGE, SIGNAL_VIOLATED_UPDATED, SIGNAL_ALARM_UPDATED, SIGNAL_MEM_ALARM_UPDATED, SIGNAL_TAMPER_UPDATED, SIGNAL_MEM_TAMPER_UPDATED, SIGNAL_BYPASS_UPDATED, SIGNAL_MASKED_UPDATED, SIGNAL_MEM_MASKED_UPDATED,SIGNAL_OUTPUTS_UPDATED,SIGNAL_OUTPUTS_BYPASS_UPDATED,SIGNAL_TROUBLE_UPDATED,SIGNAL_TROUBLE2_UPDATED,
+    _LOGGER, 
+    DOMAIN, 
+    DATA_SATEL,
+    CONF_NAME,
+    CONF_DEVICE_CODE, 
+    CONF_PARTITIONS,
+    CONF_ARM_HOME_MODE,
+    CONF_KEYPAD,
+    CONF_TROUBLE,
+    CONF_TROUBLE2,
+    CONF_ZONES, 
+    CONF_COVER,
+    CONF_ZONE_TYPE,
+    CONF_OUTPUTS, 
+    CONF_TEMP_SENSORS, 
+    CONF_SWITCHABLE_OUTPUTS, 
+    CONF_INTEGRATION_KEY,
+    DEFAULT_ZONE_MASK,
+    CONF_ZONE_MASK,
+    DEFAULT_ZONE_TAMPER,
+    CONF_ZONE_TAMPER,
+    DEFAULT_BUTTON_OUTPUT,
+    CONF_BUTTON_OUTPUTS,
+    DEFAULT_PORT, 
+    DEFAULT_CONF_ARM_HOME_MODE, 
+    DEFAULT_ZONE_TYPE,
+    CONF_EXPANDER_BATTERY,
+    DEFAULT_EXPANDER_BATTERY,
+    CONF_EXPANDER,
+    CONF_ZONES_ALARM,
+    CONF_ZONES_MEM_ALARM,
+    CONF_ZONES_TAMPER,
+    CONF_ZONES_MEM_TAMPER,
+    CONF_ZONES_BYPASS,
+    CONF_ZONES_MASKED,
+    CONF_ZONES_MEM_MASKED, 
+    CONF_TEMP_SENSORS, 
+    CONF_SWITCHABLE_BYPASS, 
+    SIGNAL_PANEL_MESSAGE, 
+    SIGNAL_VIOLATED_UPDATED, 
+    SIGNAL_ALARM_UPDATED, 
+    SIGNAL_MEM_ALARM_UPDATED, 
+    SIGNAL_TAMPER_UPDATED, 
+    SIGNAL_MEM_TAMPER_UPDATED, 
+    SIGNAL_BYPASS_UPDATED, 
+    SIGNAL_MASKED_UPDATED, 
+    SIGNAL_MEM_MASKED_UPDATED,
+    SIGNAL_OUTPUTS_UPDATED,
+    SIGNAL_OUTPUTS_BYPASS_UPDATED,
+    SIGNAL_TROUBLE_UPDATED,
+    SIGNAL_TROUBLE2_UPDATED
 )
 
 ZONE_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_ZONE_NAME): cv.string,
+        vol.Required(CONF_NAME): cv.string,
         vol.Optional(CONF_ZONE_TYPE, default=DEFAULT_ZONE_TYPE): cv.string,
         vol.Optional(CONF_ZONE_MASK, default=DEFAULT_ZONE_MASK): cv.string,
         vol.Optional(CONF_ZONE_TAMPER, default=DEFAULT_ZONE_TAMPER): cv.string,
@@ -32,7 +76,7 @@ ZONE_SCHEMA = vol.Schema(
 )
 EXPANDER_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_ZONE_NAME): cv.string,
+        vol.Required(CONF_NAME): cv.string,
         vol.Optional(CONF_EXPANDER_BATTERY, default=DEFAULT_EXPANDER_BATTERY): vol.In(
             ["no", "yes"]
         ),
@@ -40,18 +84,30 @@ EXPANDER_SCHEMA = vol.Schema(
 )
 KEYPAD_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_ZONE_NAME): cv.string,
+        vol.Required(CONF_NAME): cv.string,
     }
 )
 TROUBLE_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_ZONE_NAME): cv.string,
+        vol.Required(CONF_NAME): cv.string,
     }
 )
-EDITABLE_OUTPUT_SCHEMA = vol.Schema({vol.Required(CONF_ZONE_NAME): cv.string})
+COVER_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_NAME): cv.string,
+    }
+)
+EDITABLE_OUTPUT_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_NAME): cv.string,
+        vol.Optional(CONF_BUTTON_OUTPUTS, default=DEFAULT_BUTTON_OUTPUT): vol.In(
+            ["no", "yes"]
+        ),
+    }
+)
 PARTITION_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_ZONE_NAME): cv.string,
+        vol.Required(CONF_NAME): cv.string,
         vol.Optional(CONF_ARM_HOME_MODE): vol.In(
             [1, 2, 3]
         ),
@@ -59,7 +115,7 @@ PARTITION_SCHEMA = vol.Schema(
 )
 TEMP_SENSOR_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_TEMP_SENSOR_NAME): cv.string,
+        vol.Required(CONF_NAME): cv.string,
     }
 )
 
@@ -78,7 +134,7 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Required(CONF_HOST): cv.string,
                 vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
                 vol.Optional(CONF_DEVICE_CODE): cv.string,
-                vol.Optional(CONF_DEVICE_PARTITIONS, default={}): {
+                vol.Optional(CONF_PARTITIONS, default={}): {
                     vol.Coerce(int): PARTITION_SCHEMA
                 },
                 vol.Optional(CONF_ZONES, default={}): {vol.Coerce(int): ZONE_SCHEMA},
@@ -86,6 +142,7 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Optional(CONF_EXPANDER, default={}): {vol.Coerce(int): EXPANDER_SCHEMA},
                 vol.Optional(CONF_KEYPAD, default={}): {vol.Coerce(int): KEYPAD_SCHEMA},
                 vol.Optional(CONF_TROUBLE, default={}): {vol.Coerce(int): TROUBLE_SCHEMA},
+                vol.Optional(CONF_COVER, default={}): {vol.Coerce(int): COVER_SCHEMA},
                 
                 vol.Optional(CONF_SWITCHABLE_OUTPUTS, default={}): {
                     vol.Coerce(int): EDITABLE_OUTPUT_SCHEMA
@@ -109,7 +166,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     expanders = conf.get(CONF_EXPANDER)
     keypad = conf.get(CONF_KEYPAD)
     trouble = conf.get(CONF_TROUBLE)
-    partitions = conf.get(CONF_DEVICE_PARTITIONS)
+    partitions = conf.get(CONF_PARTITIONS)
+    cover =  conf.get(CONF_COVER)
     
     host = conf.get(CONF_HOST)
     port = conf.get(CONF_PORT)
@@ -166,14 +224,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _close)
 
-    _LOGGER.debug("Arm home config: %s, mode: %s ", conf, conf.get(CONF_ARM_HOME_MODE))
-
     hass.async_create_task(
         async_load_platform(hass, 
             Platform.ALARM_CONTROL_PANEL,
             DOMAIN,
             {
-                CONF_DEVICE_PARTITIONS: partitions,
+                CONF_PARTITIONS: partitions,
             },
             config
         )
@@ -183,7 +239,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             Platform.BUTTON,
             DOMAIN,
             {
-                CONF_DEVICE_PARTITIONS: partitions,
+                CONF_PARTITIONS: partitions,
                 CONF_SWITCHABLE_OUTPUTS: switchable_outputs,
                 CONF_DEVICE_CODE: conf.get(CONF_DEVICE_CODE),
             },
@@ -232,6 +288,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             config,
         )
     )
+    hass.async_create_task(
+        async_load_platform(
+            hass,
+            Platform.COVER,
+            DOMAIN,
+            {
+                CONF_COVER: conf.get(CONF_COVER),
+            },
+            config,
+        )
+    )
     @callback
     def alarm_status_update_callback():
         """Send status update received from alarm to Home Assistant."""
@@ -241,60 +308,59 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     def zones_violated_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("Zones VIOLATED callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_VIOLATED_UPDATED, status[ZONES])
+        async_dispatcher_send(hass, SIGNAL_VIOLATED_UPDATED, status[CONF_ZONES])
     @callback
     def zones_alarm_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("Zones ALARM callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_ALARM_UPDATED, status[ZONES])
+        async_dispatcher_send(hass, SIGNAL_ALARM_UPDATED, status[CONF_ZONES])
     @callback
     def zones_mem_alarm_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("Zones MEMORY ALARM callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_MEM_ALARM_UPDATED, status[ZONES])
+        async_dispatcher_send(hass, SIGNAL_MEM_ALARM_UPDATED, status[CONF_ZONES])
     @callback
     def zones_tamper_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("Zones TAMPER callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_TAMPER_UPDATED, status[ZONES])
+        async_dispatcher_send(hass, SIGNAL_TAMPER_UPDATED, status[CONF_ZONES])
     @callback
     def zones_mem_tamper_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("Zones MEM TAMPER callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_MEM_TAMPER_UPDATED, status[ZONES])
+        async_dispatcher_send(hass, SIGNAL_MEM_TAMPER_UPDATED, status[CONF_ZONES])
     @callback
     def zones_bypass_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("Zones BYPASS callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_BYPASS_UPDATED, status[ZONES])
+        async_dispatcher_send(hass, SIGNAL_BYPASS_UPDATED, status[CONF_ZONES])
     @callback
     def zones_masked_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("Zones MASK callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_MASKED_UPDATED, status[ZONES])
+        async_dispatcher_send(hass, SIGNAL_MASKED_UPDATED, status[CONF_ZONES])
     @callback
     def zones_mem_masked_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("Zones MEM MASKED callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_MEM_MASKED_UPDATED, status[ZONES])
+        async_dispatcher_send(hass, SIGNAL_MEM_MASKED_UPDATED, status[CONF_ZONES])
 
     @callback
     def outputs_update_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("OUTPUT updated callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_OUTPUTS_UPDATED, status["outputs"])
+        async_dispatcher_send(hass, SIGNAL_OUTPUTS_UPDATED, status[CONF_OUTPUTS])
     @callback
     def trouble_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("TROUBLE callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_TROUBLE_UPDATED, status["trouble"])
+        async_dispatcher_send(hass, SIGNAL_TROUBLE_UPDATED, status[CONF_TROUBLE])
     @callback
     def trouble2_callback(status):
         """Update zone objects as per notification from the alarm."""
         _LOGGER.warning("TROUBLE2 callback, status: %s", status)
-        async_dispatcher_send(hass, SIGNAL_TROUBLE2_UPDATED, status["trouble2"])
-    # Create a task instead of adding a tracking job, since this task will
-    # run until the connection to satel_integra is closed.
+        async_dispatcher_send(hass, SIGNAL_TROUBLE2_UPDATED, status[CONF_TROUBLE2])
+
     hass.loop.create_task(controller.keep_alive())
     hass.loop.create_task(controller.partition_armed_delay())
 
